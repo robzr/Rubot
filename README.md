@@ -22,11 +22,11 @@ InstantSlackBot::Master.new(
 
 * Create a **InstantSlackBot::Master** instance to communicate with the Slack API - it will need an API token which
   [you can get here](https://api.slack.com/docs/oauth-test-tokens).
-* Create at least one **InstantSlackBot::Bot**. A Bot needs two things to function.
-* One or more **conditions** will determine when the Bot responds. A condition can be as simple as a text string or 
-regular expression which is matched against each slack message. Multiple conditions are matched with boolean **and** 
-logic, although **or** is the default.
-* An **action** is needed, which forms the response when the conditions are met. The action can be as simple as a 
-text string, or a Proc for more sophisticated behavior.
+* Create at least one **InstantSlackBot::Bot**. A Bot needs a *condition* and an *action*.
+* The **condition(s)** will determine when the Bot responds. A condition can be as simple as a text string or 
+  regular expression which is matched against each message.
+* Multiple conditions can matched with boolean **and** or **or** logic (the default).
+* An **action** forms the response when the conditions are met. An action can be as simple as a text string, or a 
+  Proc for more sophisticated behavior.
 * When using a Procs for conditions or actions, an optional hash argument will pass the message text, username and channel.
 * Register each Bot with the Master instance using the << operator, and then call **Master#run** to operate the Bots.
