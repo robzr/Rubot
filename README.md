@@ -1,8 +1,8 @@
 # InstantSlackBot
 
-InstantSlackBot is a simple to use Ruby framework for creating Slack Bots.
-- Multithreaded channel monitoring for fast response
-- Supports multiple bots per instance for efficiency
+InstantSlackBot is an easy to use Ruby framework for creating Slack Bots.
+- Multithreaded channel monitoring for fast responses
+- Supports multiple bots per instance
 - Simple, intuitive and extensible Ruby syntax
 - Bot conditions are based on Strings, Regexps or Procs
 - Bot actions are based on Strings or Procs
@@ -18,8 +18,7 @@ InstantSlackBot::Master.new(
 <img src="https://raw.githubusercontent.com/robzr/instant-slack-bot/master/examples/pics/one_line_slack.png" 
   alt="Example output from one line bot" height=98 width=252>
 
-##How does it work?
-
+###How does it work?
 * Create a **InstantSlackBot::Master** instance to communicate with the Slack API - it will need an API token which
   [you can get here](https://api.slack.com/docs/oauth-test-tokens).
 * Create at least one **InstantSlackBot::Bot**. A Bot needs a *condition* and an *action*.
