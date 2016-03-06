@@ -18,7 +18,7 @@ InstantSlackBot::Master.new(
 <img src="https://raw.githubusercontent.com/robzr/instant-slack-bot/master/examples/pics/one_line_slack.png" 
   alt="Example output from one line bot" height=98 width=252>
 
-###How does it work?
+####How does it work?
 * Create a **InstantSlackBot::Master** instance to communicate with the Slack API - it will need an API token which
   [you can get here](https://api.slack.com/docs/oauth-test-tokens).
 * Create at least one **InstantSlackBot::Bot**. A Bot needs a *condition* and an *action*.
