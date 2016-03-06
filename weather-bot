@@ -1,10 +1,10 @@
 #!/usr/bin/env ruby
 #
-# Slabot based weather forecasting bot.
+# InstantSlackBot based weather forecasting bot.
 #
-# Demonstration of Slabot Slack Bot framework:
+# Demonstration of InstantSlackBot Slack Bot framework:
 #
-#    https://github.com/emmadev/sysutils/tree/master/Slabot
+#    https://github.com/emmadev/sysutils/tree/master/InstantSlackBot
 #
 #       -- @robzr 3/2016
 #
@@ -12,11 +12,13 @@
 #
 # sudo gem install slack-api weather_underground
 
-TRIGGER_PHRASE = 'weather'
-BOT_HELP = ">>> *Hello %s, thanks for trying %s!*\n" \
+TRIGGER_PHRASE = 'w'
+BOT_NAME = 'WeatherBot'
+BOT_HELP = ">>> *Hello %s, thanks for trying #{BOT_NAME}!*\n" \
     "To retrieve the weather, just type \"_#{TRIGGER_PHRASE} location_\", " \
     " where _location_ is a zip code or a city, state\n" \
-    "_<https://github.com/robzr/Slabot|Slabot charges in a closet at night in github.>_\n"
+    "_<https://github.com/robzr/instant-slack-bot|" \
+    "See where #{BOT_NAME} charges in a closet at night.>_\n"
 CMDLINE_HELP = %(
   \nGet Slack API token at https://api.slack.com/docs/oauth-test-tokens\n
   Get Weather Underground API key at: https://www.wunderground.com/weather/api\n
@@ -26,10 +28,10 @@ CMDLINE_HELP = %(
 
 require 'optparse'
 require 'weather_underground'
-require_relative 'slabot'
+require_relative 'instant_slack_bot'
 
-slabot_options = { 
-  bot_name: 'Slabot',
+instabot_options = { 
+  name: BOT_NAME,
   post_options: { icon_emoji: ':partly_sunny:' },
   debug: false
 }
@@ -38,33 +40,34 @@ channels = []
 options = {}
 
 OptionParser.new do |opts|
-  opts.banner = "Usage: #{$PROGRAM_NAME.sub(%r{.*/}, '')} [-b bot_name] [-c channel|-r regex [-c ...|-r ...]] -s token -w key\n\n"
+  opts.banner = "Usage: #{$PROGRAM_NAME.sub(%r{.*/}, '')} -s token -w key [-c channel|-r regex [-c ...|-r ...]]\n\n"
 
-  opts.on('-b', '--bot-name', '=MANDATORY', "Override default bot name (#{slabot_options[:bot_name]})") { |arg| slabot_options[:post_options][:bot_name] = arg }
-  opts.on('-c', '--channel', '=MANDATORY', 'Provide a channel name to monitor')                  { |arg| channels << arg }
-  opts.on('-h', '--help', 'Display this help.')                                                  { abort "#{opts.help}#{CMDLINE_HELP}" }
-  opts.on('-q', '--quiet', 'Suppress output.')                                                   {       options[:quiet] = true }
-  opts.on('-r', '--channel-regex', '=MANDATORY', 'Provide a regex for channels to monitor')      { |arg| channels << %r{arg} }
-  opts.on('-s', '--slack-token', '=MANDATORY', 'Specify the Slack API token')                    { |arg| slabot_options[:slack_token] = arg }
-  opts.on('-w', '--wu-key', '=MANDATORY', 'Specify the Weather Underground API key')             { |arg| options[:wu_key] = arg }
+  opts.on('-c', '--channel', '=MANDATORY', 'Provide a channel name to monitor')                   { |arg| channels << arg }
+  opts.on('-h', '--help', 'Display this help.')                                                   { abort "#{opts.help}#{CMDLINE_HELP}" }
+  opts.on('-q', '--quiet', 'Suppress output.')                                                    {       options[:quiet] = true }
+  opts.on('-r', '--channel-regex', '=MANDATORY', 'Provide a regex for channels to monitor')       { |arg| channels << %r{arg} }
+  opts.on('-s', '--slack-token', '=MANDATORY', 'Specify the Slack API token')                     { |arg| instabot_options[:slack_token] = arg }
+  opts.on('-w', '--wu-key', '=MANDATORY', 'Specify the Weather Underground API key')              { |arg| options[:wu_key] = arg }
 end.parse!
 
-abort 'You must provide a Slack token - use -h for help' unless slabot_options[:slack_token]
+abort 'You must provide a Slack token - use -h for help' unless instabot_options[:slack_token]
 abort 'You must provide a Weather Underground token - use -h for help' unless options[:wu_key]
 
-slabot = Slabot::Slabot.new slabot_options.merge({ channels: channels, debug: true })
+instabot = InstantSlackBot::Master.new instabot_options.merge({ channels: channels, debug: true })
 
 unless options[:quiet]
-  puts "Using the name #{slabot.bot_name}\n" \
-       "Found #{slabot.users.length} users online\n" \
-       "Monitoring the following channels: #{slabot.channels(:subscribed).join(', ')}"
+  puts "Using the name #{instabot.name}\n" \
+       "Found #{instabot.users.length} users online\n" \
+       "Monitoring the following channels: #{instabot.channels(:subscribed).join(', ')}"
 end
 
 get_weather = proc do |arg|
   location = arg[:text].sub(/^#{TRIGGER_PHRASE}\s+/, '')
   case location
   when 'help'
-    sprintf BOT_HELP, arg[:user], options[:bot_name]
+    sprintf BOT_HELP, arg[:user]
+  when 'location'
+    msg = ">_*Nice try #{arg[:user]}, you clown.*_"
   else
     print "Responding to #{arg[:user]} in #{arg[:channel]} for location #{location} - " unless options[:quiet]
     begin
@@ -86,11 +89,11 @@ get_weather = proc do |arg|
         puts 'wunderground returned ambiguous results.' unless options[:quiet]
         msg = '>_*The location you tried is ambiguious, try something more specific.*_'
       else
-        msg = "*Current conditions: <#{forecast['current_observation']['forecast_url']}|" \
-          "#{forecast['current_observation']['weather']}, " \
-          "#{forecast['current_observation']['temp_f']}° Degrees with " \
-          "#{forecast['current_observation']['relative_humidity']} Humidity> in " \
-          "_#{forecast['current_observation']['display_location']['full']}_*\n>>>"
+        msg = "*<#{forecast['current_observation']['forecast_url']}|" \
+          "Long and short of it is> #{forecast['current_observation']['weather']}, " \
+          "#{forecast['current_observation']['temp_f']}° Degrees, " \
+          "#{forecast['current_observation']['relative_humidity']} Humidity in " \
+          "_#{forecast['current_observation']['display_location']['full']}_.*\n>>>"
         forecast['forecast']['txt_forecast']['forecastday'].each do |forecast_detail|
           msg << "*#{forecast_detail['title']}*  #{forecast_detail['fcttext']}\n"
         end
@@ -104,6 +107,6 @@ get_weather = proc do |arg|
   end
 end
 
-slabot << Slabot::Trigger.new(conditions: %r{^#{TRIGGER_PHRASE}\s+.+}, callback: get_weather)
+instabot << InstantSlackBot::Bot.new(conditions: %r{^#{TRIGGER_PHRASE}\s+.+}, action: get_weather)
 
-slabot.run
+instabot.run

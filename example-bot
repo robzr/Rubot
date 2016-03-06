@@ -1,14 +1,14 @@
 #!/usr/bin/env ruby
 #
-# Demonstration of Slabot API
-#   https://github.com/emmadev/sysutils/Slabot
+# Demonstration of InstantSlackBot API with command line interaction
+#   https://github.com/emmadev/sysutils/InstantSlackBot
 #     -- @robzr 3/2016
 
 require 'optparse'
-require_relative 'slabot'
+require_relative 'instant_slack_bot'
 
 channels = []
-slabot_options = { }
+instabot_options = { }
 
 OptionParser.new do |opts|
   program_name = $PROGRAM_NAME.sub(%r{.*/}, '')
@@ -17,41 +17,48 @@ OptionParser.new do |opts|
   opts.on('-c', '--channel', '=MANDATORY', 'Provide a channel name to monitor')     { |arg| channels << arg }
   opts.on('-r', '--channel-regex', '=MANDATORY', 'Regex pattern to match channels') { |arg| channels << %r{#{arg}} }
   opts.on('-h', '--help', 'Display this help.')                                     { abort opts.help }
-  opts.on('-s', '--slack-token', '=MANDATORY', 'Specify the Slack API token')       { |arg| slabot_options[:slack_token] = arg }
+  opts.on('-s', '--slack-token', '=MANDATORY', 'Specify the Slack API token')       { |arg| instabot_options[:slack_token] = arg }
 end.parse!
 
-abort 'No Slack token specified - use -h for help' unless slabot_options[:slack_token]
+abort 'No Slack token specified - use -h for help' unless instabot_options[:slack_token]
 
-slabot = Slabot::Slabot.new slabot_options.merge({ channels: channels })
+instabot = InstantSlackBot::Master.new instabot_options.merge({ channels: channels })
 
 # Display details about the slack connection and bot state
-puts "Logged into Slack as #{slabot.slack['user']} in team #{slabot.slack['team']} (#{slabot.slack['url']})"
-puts "All available channels\n -> #{slabot.channels.join("\n -> ")}"
-puts "All users\n -> #{slabot.users.join("\n -> ")}"
-puts "Subscribed channels\n -> #{slabot.channels(:subscribed).join("\n -> ")}"
+puts "Logged into Slack as #{instabot.slack['user']} in team #{instabot.slack['team']} (#{instabot.slack['url']})"
+puts "All users\n -> #{instabot.users.join("\n -> ")}"
+puts "Available channels\n -> #{instabot.channels(:available).join("\n -> ")}"
+puts "Subscribed channels\n -> #{instabot.channels(:subscribed).join("\n -> ")}"
 
-# Most simple incantation
-slabot << Slabot::Trigger.new(conditions: 'hello slabot', callback: 'Hello, my friend')
+# Simple, static trigger and response
+instabot << InstantSlackBot::Bot.new(conditions: 'hello instabot', action: 'Hello, my friend')
 
-# Using a regex condition and an inline proc callback
-slabot << Slabot::Trigger.new(conditions: /(who|how) are you, slabot/, callback: proc { |arg| "I\'m here and I\'m fine, #{arg[:user]}" })
+# Regex trigger condition and an inline proc action
+instabot << InstantSlackBot::Bot.new(conditions: /(who|how) are you, instabot/, 
+                                     action: proc { |arg| "I\'m here and I\'m fine, #{arg[:user]}" })
 
-# More complex Trigger, using externally declared procs for both conditions and a trigger
-i_was_triggered = proc do |arg|
+# Proc based conditions and action
+conditions = [
+  proc do |arg|
+    # responds if the message begins with "instabot short" and is less than 15 characters total
+    arg[:channel] == 'general' && arg[:text].length < 15 && arg[:text] =~ /^instabot short/i
+  end,
+  proc do |arg|
+    # responds if the message begins with "instabot long" and is more than 15 characters total
+    arg[:channel] == 'general' && arg[:text].length > 15 && arg[:text] =~ /^instabot long/i
+  end
+]
+action = proc do |arg|
   "*Matched _Text* from_ ~#{arg[:user]}~ in ##{arg[:channel]}\n>>>#{arg[:text]}"
 end
 
-conditions = [
-  proc do |arg|
-    arg[:channel] == 'general' && arg[:text].length < 15 && arg[:text] =~ /^slabot short/i
-  end,
-  proc do |arg|
-  arg[:channel] == 'general' && arg[:text].length > 15 && arg[:text] =~ /^slabot long/i
-  end
-]
+instabot << InstantSlackBot::Bot.new(conditions: conditions, action: action)
 
-slabot << Slabot::Trigger.new(conditions: conditions, callback: i_was_triggered)
+puts "Running #{instabot.bots.length} bots"
+instabot.bots.each_index do |idx|
+  conditions = instabot.bots[idx].conditions
+  printf " -> #%d has %d condition%s\n", 
+    idx + 1, conditions.length, conditions.length > 1 ? 's' : ''
+end
 
-puts "Defined #{slabot.triggers.length} triggers"
-
-slabot.run
+instabot.run

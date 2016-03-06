@@ -1,108 +1,40 @@
 #
-# Slabot:: Small and simple to use multi-threaded Slack bot API -- @robzr
+# InstantSlackBot::Master
 #
-# Depends on slack-ruby: sudo gem install slack-ruby
+#   Master class - multiple Bots run in a single Master class
 #
-module Slabot
+module InstantSlackBot
   require 'pp'
   require 'slack'
   require 'thread'
 
-  # A Trigger is a list of conditions and a callback proc, which is called when
-  #   a condition is met, using :or or :and boolean logic.  Conditions can be 
-  #   strings, regex's, or procs. Return value of the callback proc is a string 
-  #   literal which is posted to Slack.
-  #
-  class Trigger
-    attr_accessor :callback, :condition_logic, :debug
-    attr_reader :conditions
-
-    def initialize(callback: nil, conditions: nil, condition_logic: :or, debug: false)
-      @condition_logic = condition_logic
-
-      self.callback = callback
-      self.conditions = conditions
-    end
-
-    def callback=(arg)
-      case arg.class.name
-      when 'Proc'
-        @callback = arg
-      when 'String'
-        @callback = proc { arg }
-      end
-    end
-
-    def conditions=(arg)
-      @conditions = []
-      case arg.class.name
-      when 'Array'
-        @conditions += arg
-      when 'String', 'Regexp', 'Proc'
-        @conditions << arg
-      else
-        raise "Condition (#{arg}) is an invalid class (#{arg.class.name})"
-      end
-    end
-
-    def <<(arg)
-      @conditions << arg
-    end
-
-    # TODO: change arg type to a single hash for brevity
-    def check(args)
-      run_callback = false
-      case @condition_logic
-      when :or
-        @conditions.each { |condition| run_callback ||= check_condition args.merge({ condition: condition }) }
-      when :and
-        run_callback = true
-        @conditions.each { |condition| run_callback &&= check_condition args.merge({ condition: condition }) }
-      end
-      @callback.call(args) if run_callback
-    end
-
-    def check_condition(condition: condition, text: nil, user: nil, channel: nil)
-      case condition.class.name
-      when 'String'
-        run_callback = true if /\b#{condition}\b/i.match(text)
-      when 'Regexp'
-        run_callback = true if condition.match(text)
-      when 'Proc'
-        run_callback = true if condition.call(text: text, user: user, channel: channel)
-      else
-        raise "Condition (#{condition}) is an invalid class (#{condition.class.name})"
-      end
-    end
-  end
-
-  class Slabot
+  class Master
     # TODO: add default icon_url from github cdn
-    DEFAULT_POST_OPTIONS = { username: 'Slabot', icon_emoji: ':squirrel:', link_names: 'true', unfurl_links: 'false', parse: 'none' }
+    DEFAULT_POST_OPTIONS = { username: 'InstantSlackBot', icon_emoji: ':squirrel:', link_names: 'true', unfurl_links: 'false', parse: 'none' }
     THREAD_THROTTLE_DELAY = 0.01
 
-    attr_accessor :post_options, :triggers
+    attr_accessor :post_options, :bots
 
     def initialize(
-      bot_name: nil,
+      name: nil,
       slack_token: nil,
       icon_url: '',
       max_threads: 100,
       max_threads_per_channel: 5,
       post_options: {},
       channels: nil,
-      trigger: nil,
+      bot: nil,
       debug:false)
 
       @slack_token = slack_token
       @max_threads = max_threads
       @max_threads_per_channel = max_threads_per_channel
       @post_options = DEFAULT_POST_OPTIONS
-      @post_options.merge!({ username: bot_name }) if bot_name
+      @post_options.merge!({ username: name }) if name
       @post_options.merge!(post_options)
       @channel_criteria = channels
       @debug = debug
-      @triggers = []
+      @bots = []
       @threads = {}
       @users = {}
       @slack_info = {}
@@ -113,12 +45,12 @@ module Slabot
       raise "Error authenticating to Slack" unless @slack_connection['ok']
       update_channels
       update_users
-      add_trigger trigger
+      add_bot bot
     rescue Exception => msg # TODO: Refine
-      abort "Error Initializing Slabot: #{msg}"
+      abort "Error Initializing InstantSlackBot: #{msg}"
     end
 
-    def bot_name
+    def name
       @post_options[:username]
     end
 
@@ -128,10 +60,12 @@ module Slabot
 
     def <<(arg)
       case arg.class.name
-      when 'String'
+      when 'String', 'Regexp', 'Proc'
         add_channel arg
-      when 'Slabot::Trigger'
-        add_trigger arg
+      when 'Array'
+        arg.each { |arg| self << arg }
+      when 'InstantSlackBot::Bot'
+        add_bot arg
       else
         raise "Error trying to add class #{arg.class.name}"
       end
@@ -150,14 +84,13 @@ module Slabot
       update_channels
     end
 
-    # Can be called like: #channels, #channels(:subscribed) or #channels(:available)
-    def channels(query_type = :available)
+    def channels(query_type = :subscribed)
       if query_type == :available
         @slack.channels.list().body['channels'].map { |channel| channel['name'] }
       elsif query_type == :subscribed
         @channels.values.map { |ch| ch['name'] }
       else
-        raise "Slabot#channels called with invalid argument #{all_or_available}"
+        raise "InstantSlackBot#channels called with invalid argument #{all_or_available}"
       end
     end
 
@@ -185,9 +118,11 @@ module Slabot
               need_to_process = false
               history = nil
               process_message = nil
+              # Need to optomize threading so we can query multiple channels simultaneously
               mutex.synchronize do
                 begin
-                  slack_client = Slack::RPC::Client.new(@slack_token)
+#                  slack_client = Slack::RPC::Client.new(@slack_token)
+                  slack_client = @slack
                   history = slack_client.channels.history(channel: ch_id, oldest: last_read_ts[ch_id], count: 1000)
                   if defined?(history.body['messages']) && history.body['messages'] && history.body['messages'].length > 0
                     last_read_ts[ch_id] = history.body['messages'][0]['ts']
@@ -201,7 +136,7 @@ module Slabot
                         update_channels
                       else
                         # we'll need to handle other messages
-                        puts "be_a_bot received message: #{message['type']}: #{message.pretty_inspect}" if @debug
+                        puts "Master#run received message: #{message['type']}: #{message.pretty_inspect}" if @debug
                       end
                     end
                   end
@@ -235,12 +170,12 @@ module Slabot
       update_channels
     end
 
-    def add_trigger(trigger)
-      case trigger.class.name
-      when 'Slabot::Trigger'
-        @triggers << trigger if trigger
+    def add_bot(bot)
+      case bot.class.name
+      when 'InstantSlackBot::Bot'
+        @bots << bot if bot
       when 'Array'
-        trigger.each { |trig| add_trigger trig }
+        bot.each { |bot| add_bot bot }
       when 'NilClass'
       end
     end
@@ -282,14 +217,14 @@ module Slabot
       user = message['username'] || @users[message['user']]['name'] 
 
       # TODO: better checking to make sure we do not respond to a bot
-      if defined?(message['username']) && message['username'] != self.bot_name()
+      if defined?(message['username']) && message['username'] != self.name()
         catch (:triggered) do
-          @triggers.each do |trigger|
-            trigger_response = trigger.check(text: message['text'], user: user, channel: @channels[channel]['name'])
-            if trigger_response
-              trigger_response = { text: trigger_response.to_s } if trigger_response.class.name != 'Hash'
+          @bots.each do |bot|
+            bot_response = bot.check(text: message['text'], user: user, channel: @channels[channel]['name'])
+            if bot_response
+              bot_response = { text: bot_response.to_s } if bot_response.class.name != 'Hash'
               begin
-                @slack.chat.postMessage @post_options.merge({ channel: channel }).merge(trigger_response)
+                @slack.chat.postMessage @post_options.merge({ channel: channel }).merge(bot_response)
               rescue Exception => msg # TODO: Refine
                 abort "Error: could not postMessage: #{msg}"
               end
