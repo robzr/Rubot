@@ -26,27 +26,34 @@ abort 'No Slack token specified - use -h for help' unless instabot_options[:toke
 
 instabot = InstantSlackBot::Master.new instabot_options.merge({ channels: channels })
 
-# Display details about the slack connection and bot state
-puts "Logged into Slack as #{instabot.slack['user']} in team #{instabot.slack['team']} (#{instabot.slack['url']})"
+# Print a few details about the Slack connection and Bot
+puts "Logged into Slack as #{instabot.slack['user']}"
+puts "Using team #{instabot.slack['team']} (#{instabot.slack['url']})"
 puts "All users\n -> #{instabot.users.join("\n -> ")}"
 puts "Available channels\n -> #{instabot.channels(:available).join("\n -> ")}"
 puts "Subscribed channels\n -> #{instabot.channels(:subscribed).join("\n -> ")}"
 
-# Simple, static trigger and response
-instabot << InstantSlackBot::Bot.new(conditions: 'hello instabot', action: 'Hello, my friend')
+# Static text trigger and response
+simple_bot = InstantSlackBot::Bot.new(
+  conditions: 'hello instabot', 
+  action: 'Hello, my friend.'
+)
+
+# Register the bot with the master using <<
+instabot << simple_bot
 
 # Regex trigger condition and an inline proc action
-instabot << InstantSlackBot::Bot.new(conditions: /(who|how) are you, instabot/, 
-                                     action: proc { |arg| "I\'m here and I\'m fine, #{arg[:user]}" })
+instabot << InstantSlackBot::Bot.new(
+  conditions: /(who|how) are you, instabot/, 
+  action: proc { |arg| "I\'m here and I\'m fine, @#{arg[:user]}." }
+)
 
 # Proc based conditions and action
 conditions = [
   proc do |arg|
-    # responds if the message begins with "instabot short" and is less than 15 characters total
     arg[:channel] == 'general' && arg[:text].length < 15 && arg[:text] =~ /^instabot short/i
   end,
   proc do |arg|
-    # responds if the message begins with "instabot long" and is more than 15 characters total
     arg[:channel] == 'general' && arg[:text].length > 15 && arg[:text] =~ /^instabot long/i
   end
 ]
