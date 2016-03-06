@@ -7,16 +7,15 @@
 - Bot conditions are based on Strings, Regexps or Procs
 - Bot actions are based on Strings or Procs
 
-InstantSlackBot can be run in as little as one line (well, one Ruby line):
-
+<img src="https://raw.githubusercontent.com/robzr/instant-slack-bot/master/examples/pics/one_line_slack.png" 
+  alt="Example output from one line bot" height=98 width=252>
+InstantSlackBot can be created in as little as one line (well, one Ruby line):
 ```ruby
 InstantSlackBot::Master.new(
   token: 'xoxp-XXXXXXXXXXX-XXXXXXXXXXX-XXXXXXXXXXX-XXXXXXXXXX', 
   bots: { conditions: 'hi', action: 'Hello!' }
 ).run
 ```
-<img src="https://raw.githubusercontent.com/robzr/instant-slack-bot/master/examples/pics/one_line_slack.png" 
-  alt="Example output from one line bot" height=98 width=252>
 
 ####How does it work?
 * Create a **InstantSlackBot::Master** instance to communicate with the Slack API - you can 
