@@ -193,7 +193,7 @@ module InstantSlackBot
     def update_channels
       @channels = {}
       channel_criteria = @channel_criteria 
-      channel_criteria = [%r{.*}] unless channel_criteria.length > 0
+      channel_criteria = [%r{.*}] unless channel_criteria && channel_criteria.length > 0
       begin
         @slack.channels.list.body['channels'].each do |channel|
           channel_criteria.each do |criteria|
