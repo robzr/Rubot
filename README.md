@@ -6,6 +6,7 @@
 - Simple, intuitive and extensible Ruby syntax
 - Bot conditions are based on Strings, Regexps or Procs
 - Bot actions are based on Strings or Procs
+
 ---
 <img src="https://raw.githubusercontent.com/robzr/instant-slack-bot/master/examples/pics/one_line_slack.png" 
   alt="Example output from one line bot" height=98 width=252>
