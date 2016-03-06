@@ -19,10 +19,10 @@ OptionParser.new do |opts|
   opts.on('-c', '--channel', '=MANDATORY', 'Provide a channel name to monitor')     { |arg| channels << arg }
   opts.on('-r', '--channel-regex', '=MANDATORY', 'Regex pattern to match channels') { |arg| channels << %r{#{arg}} }
   opts.on('-h', '--help', 'Display this help.')                                     { abort opts.help }
-  opts.on('-s', '--slack-token', '=MANDATORY', 'Specify the Slack API token')       { |arg| instabot_options[:slack_token] = arg }
+  opts.on('-s', '--slack-token', '=MANDATORY', 'Specify the Slack API token')       { |arg| instabot_options[:token] = arg }
 end.parse!
 
-abort 'No Slack token specified - use -h for help' unless instabot_options[:slack_token]
+abort 'No Slack token specified - use -h for help' unless instabot_options[:token]
 
 instabot = InstantSlackBot::Master.new instabot_options.merge({ channels: channels })
 

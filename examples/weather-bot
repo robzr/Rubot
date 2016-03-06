@@ -44,11 +44,11 @@ OptionParser.new do |opts|
   opts.on('-h', '--help', 'Display this help.')                                                   { abort "#{opts.help}#{CMDLINE_HELP}" }
   opts.on('-q', '--quiet', 'Suppress output.')                                                    {       options[:quiet] = true }
   opts.on('-r', '--channel-regex', '=MANDATORY', 'Provide a regex for channels to monitor')       { |arg| channels << %r{arg} }
-  opts.on('-s', '--slack-token', '=MANDATORY', 'Specify the Slack API token')                     { |arg| instabot_options[:slack_token] = arg }
+  opts.on('-s', '--slack-token', '=MANDATORY', 'Specify the Slack API token')                     { |arg| instabot_options[:token] = arg }
   opts.on('-w', '--wu-key', '=MANDATORY', 'Specify the Weather Underground API key')              { |arg| options[:wu_key] = arg }
 end.parse!
 
-abort 'You must provide a Slack token - use -h for help' unless instabot_options[:slack_token]
+abort 'You must provide a Slack token - use -h for help' unless instabot_options[:token]
 abort 'You must provide a Weather Underground token - use -h for help' unless options[:wu_key]
 
 instabot = InstantSlackBot::Master.new instabot_options.merge({ channels: channels, debug: true })

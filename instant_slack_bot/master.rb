@@ -10,48 +10,58 @@ module InstantSlackBot
 
   class Master
     # TODO: add default icon_url from github cdn
-    DEFAULT_POST_OPTIONS = { username: 'InstantSlackBot', icon_emoji: ':squirrel:', link_names: 'true', unfurl_links: 'true', parse: 'none' }
+    DEFAULT_BOT_NAME = 'InstantSlackBot'
+    DEFAULT_POST_OPTIONS = { icon_emoji: ':squirrel:', link_names: 'true', unfurl_links: 'true', parse: 'none' }
     THREAD_THROTTLE_DELAY = 0.01
 
     attr_accessor :post_options, :bots
 
     def initialize(
-      name: nil,
-      slack_token: nil,
-      icon_url: '',
+      bots: nil,
+      channels: nil,
+      debug:false,
       max_threads: 100,
       max_threads_per_channel: 5,
+      name: DEFAULT_BOT_NAME,
       post_options: {},
-      channels: nil,
-      bot: nil,
-      debug:false)
-
-      @slack_token = slack_token
+      token: nil
+    )
+      @bots = []
+      @channel_criteria = channels
+      @debug = debug
       @max_threads = max_threads
       @max_threads_per_channel = max_threads_per_channel
       @post_options = DEFAULT_POST_OPTIONS
       @post_options.merge!({ username: name }) if name
       @post_options.merge!(post_options)
-      @channel_criteria = channels
-      @debug = debug
-      @bots = []
+      @token = token
+
+      @slack = nil
+      @slack_info = {}
       @threads = {}
       @users = {}
-      @slack_info = {}
 
-      @slack = Slack::RPC::Client.new(@slack_token)
+    begin
+      @slack = Slack::RPC::Client.new(@token)
       auth_test = @slack.auth.test
-      @slack_connection = auth_test.body
-      raise "Error authenticating to Slack" unless @slack_connection['ok']
-      update_channels
-      update_users
-      add_bot bot
     rescue Exception => msg # TODO: Refine
       abort "Error Initializing InstantSlackBot: #{msg}"
     end
 
+      @slack_connection = auth_test.body
+      raise "Error authenticating to Slack" unless @slack_connection['ok']
+
+      update_channels
+      update_users
+      add_bot bots
+    end
+
     def name
       @post_options[:username]
+    end
+
+    def name=(name)
+      @post_options[:username] = name
     end
 
     def slack
@@ -64,7 +74,7 @@ module InstantSlackBot
         add_channel arg
       when 'Array'
         arg.each { |arg| self << arg }
-      when 'InstantSlackBot::Bot'
+      when 'InstantSlackBot::Bot', 'Hash'
         add_bot arg
       else
         raise "Error trying to add class #{arg.class.name}"
@@ -120,7 +130,7 @@ module InstantSlackBot
               process_message = nil
               mutex.synchronize do
                 begin
-                  slack_client = Slack::RPC::Client.new(@slack_token)
+                  slack_client = Slack::RPC::Client.new(@token)
                   history = slack_client.channels.history(channel: ch_id, oldest: last_read_ts[ch_id], count: 1000)
                   if defined?(history.body['messages']) && history.body['messages'] && history.body['messages'].length > 0
                     last_read_ts[ch_id] = history.body['messages'][0]['ts']
@@ -170,6 +180,8 @@ module InstantSlackBot
 
     def add_bot(bot)
       case bot.class.name
+      when 'Hash'
+        @bots << InstantSlackBot::Bot.new(bot)
       when 'InstantSlackBot::Bot'
         @bots << bot if bot
       when 'Array'
@@ -180,7 +192,8 @@ module InstantSlackBot
 
     def update_channels
       @channels = {}
-      channel_criteria = @channel_criteria.length > 0 ? @channel_criteria : [%r{.*}]
+      channel_criteria = @channel_criteria 
+      channel_criteria = [%r{.*}] unless channel_criteria.length > 0
       begin
         @slack.channels.list.body['channels'].each do |channel|
           channel_criteria.each do |criteria|
