@@ -18,7 +18,5 @@ InstantSlackBot::Master.new(
   bots: { conditions: 'hi', action: 'Hello!' }
 ).run
 ```
-![alt text][one_line_slack_pic]
-
-[one_line_slack_pic]: https://raw.githubusercontent.com/robzr/instant-slack-bot/master/examples/pics/one_line_slack.png "Example output from one line bot"
-
+<img src="https://raw.githubusercontent.com/robzr/instant-slack-bot/master/examples/pics/one_line_slack.png" 
+  alt="Example output from one line bot" height=98 width=252>
