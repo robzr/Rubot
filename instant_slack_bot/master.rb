@@ -11,7 +11,7 @@ module InstantSlackBot
   class Master
     # TODO: add default icon_url from github cdn
     DEFAULT_BOT_NAME = 'InstantSlackBot'
-    DEFAULT_POST_OPTIONS = { icon_emoji: ':squirrel:', link_names: 'true', unfurl_links: 'true', parse: 'none' }
+    DEFAULT_POST_OPTIONS = { icon_emoji: ':squirrel:', link_names: 'true', unfurl_links: 'false', parse: 'none' }
     THREAD_THROTTLE_DELAY = 0.01
 
     attr_accessor :post_options, :bots

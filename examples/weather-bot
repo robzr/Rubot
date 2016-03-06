@@ -10,7 +10,7 @@
 #
 # sudo gem install slack-api weather_underground
 
-TRIGGER_PHRASE = 'w'
+TRIGGER_PHRASE = 'weather'
 BOT_NAME = 'WeatherBot'
 BOT_HELP = ">>> *Hello @%s, thanks for trying #{BOT_NAME}!*\n" \
     "To retrieve the weather, just type \"_#{TRIGGER_PHRASE} location_\", " \

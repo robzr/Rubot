@@ -19,6 +19,11 @@ InstantSlackBot::Master.new(
 ).run
 ```
 
+Or by using Procs for conditions and actions, more [sophisticated bots can easily be made](examples).
+
+<img src="https://raw.githubusercontent.com/robzr/instant-slack-bot/master/examples/pics/weather_bot_slack.png"
+  alt="Example output from WeatherBot" height=542 width=815>
+
 ####How does it work?
 * Create a **InstantSlackBot::Master** instance to communicate with the Slack API - you can 
 [get an API token here](https://api.slack.com/docs/oauth-test-tokens).
@@ -37,3 +42,4 @@ will usually be a Proc.
 * Write is_typing while waiting for bot to respond (will have to track)
 * Update API documentation to RDoc standards
 * Bundle and distribute on rubygems.org
+
