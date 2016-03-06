@@ -1,9 +1,11 @@
 #!/usr/bin/env ruby
 #
 # Demonstration of InstantSlackBot API with command line interaction
-#   https://github.com/emmadev/sysutils/InstantSlackBot
+# 
+#   http://github.com/robzr/instant-slack-bot
+#
 #     -- @robzr 3/2016
-
+#
 require 'optparse'
 require_relative 'instant_slack_bot'
 

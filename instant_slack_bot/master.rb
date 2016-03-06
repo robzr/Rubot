@@ -10,7 +10,7 @@ module InstantSlackBot
 
   class Master
     # TODO: add default icon_url from github cdn
-    DEFAULT_POST_OPTIONS = { username: 'InstantSlackBot', icon_emoji: ':squirrel:', link_names: 'true', unfurl_links: 'false', parse: 'none' }
+    DEFAULT_POST_OPTIONS = { username: 'InstantSlackBot', icon_emoji: ':squirrel:', link_names: 'true', unfurl_links: 'true', parse: 'none' }
     THREAD_THROTTLE_DELAY = 0.01
 
     attr_accessor :post_options, :bots
@@ -118,11 +118,9 @@ module InstantSlackBot
               need_to_process = false
               history = nil
               process_message = nil
-              # Need to optomize threading so we can query multiple channels simultaneously
               mutex.synchronize do
                 begin
-#                  slack_client = Slack::RPC::Client.new(@slack_token)
-                  slack_client = @slack
+                  slack_client = Slack::RPC::Client.new(@slack_token)
                   history = slack_client.channels.history(channel: ch_id, oldest: last_read_ts[ch_id], count: 1000)
                   if defined?(history.body['messages']) && history.body['messages'] && history.body['messages'].length > 0
                     last_read_ts[ch_id] = history.body['messages'][0]['ts']

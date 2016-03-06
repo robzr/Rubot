@@ -1,10 +1,8 @@
 #!/usr/bin/env ruby
 #
-# InstantSlackBot based weather forecasting bot.
+# InstantSlackBot based weather bot.
 #
-# Demonstration of InstantSlackBot Slack Bot framework:
-#
-#    https://github.com/emmadev/sysutils/tree/master/InstantSlackBot
+#    http://github.com/robzr/instant-slack-bot
 #
 #       -- @robzr 3/2016
 #
@@ -14,7 +12,7 @@
 
 TRIGGER_PHRASE = 'w'
 BOT_NAME = 'WeatherBot'
-BOT_HELP = ">>> *Hello %s, thanks for trying #{BOT_NAME}!*\n" \
+BOT_HELP = ">>> *Hello @%s, thanks for trying #{BOT_NAME}!*\n" \
     "To retrieve the weather, just type \"_#{TRIGGER_PHRASE} location_\", " \
     " where _location_ is a zip code or a city, state\n" \
     "_<https://github.com/robzr/instant-slack-bot|" \
@@ -67,7 +65,7 @@ get_weather = proc do |arg|
   when 'help'
     sprintf BOT_HELP, arg[:user]
   when 'location'
-    msg = ">_*Nice try #{arg[:user]}, you clown.*_"
+    msg = ">_*Nice try @#{arg[:user]}, you clown.*_"
   else
     print "Responding to #{arg[:user]} in #{arg[:channel]} for location #{location} - " unless options[:quiet]
     begin
@@ -90,10 +88,10 @@ get_weather = proc do |arg|
         msg = '>_*The location you tried is ambiguious, try something more specific.*_'
       else
         msg = "*<#{forecast['current_observation']['forecast_url']}|" \
-          "Long and short of it is> #{forecast['current_observation']['weather']}, " \
-          "#{forecast['current_observation']['temp_f']}° Degrees, " \
+          "Current conditions - #{forecast['current_observation']['weather']}, " \
+          "#{forecast['current_observation']['temp_f']}°F with " \
           "#{forecast['current_observation']['relative_humidity']} Humidity in " \
-          "_#{forecast['current_observation']['display_location']['full']}_.*\n>>>"
+          "_#{forecast['current_observation']['display_location']['full']}._>*\n>>>"
         forecast['forecast']['txt_forecast']['forecastday'].each do |forecast_detail|
           msg << "*#{forecast_detail['title']}*  #{forecast_detail['fcttext']}\n"
         end
@@ -107,6 +105,6 @@ get_weather = proc do |arg|
   end
 end
 
-instabot << InstantSlackBot::Bot.new(conditions: %r{^#{TRIGGER_PHRASE}\s+.+}, action: get_weather)
+instabot << InstantSlackBot::Bot.new(conditions: %r{^#{TRIGGER_PHRASE}\s+\w+}, action: get_weather)
 
 instabot.run
