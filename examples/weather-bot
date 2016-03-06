@@ -26,7 +26,7 @@ CMDLINE_HELP = %(
 
 require 'optparse'
 require 'weather_underground'
-require_relative 'instant_slack_bot'
+require_relative '../instant_slack_bot'
 
 instabot_options = { 
   name: BOT_NAME,

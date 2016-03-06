@@ -7,7 +7,7 @@
 #     -- @robzr 3/2016
 #
 require 'optparse'
-require_relative 'instant_slack_bot'
+require_relative '../instant_slack_bot'
 
 channels = []
 instabot_options = { }
