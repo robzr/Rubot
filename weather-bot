@@ -1,10 +1,10 @@
 #!/usr/bin/env ruby
 #
-# Rubot based weather forecasting bot.
+# Slabot based weather forecasting bot.
 #
-# Demonstration of Rubot Slack Bot framework:
+# Demonstration of Slabot Slack Bot framework:
 #
-#    https://github.com/emmadev/sysutils/tree/master/Rubot
+#    https://github.com/emmadev/sysutils/tree/master/Slabot
 #
 #       -- @robzr 3/2016
 #
@@ -12,22 +12,27 @@
 #
 # sudo gem install slack-api weather_underground
 
-require 'optparse'
-require 'weather_underground'
-require_relative 'rubot'
-
-rubot_options = { 
-  bot_name: 'Rubot',
-  post_options: { icon_emoji: ':partly_sunny:' },
-  debug: false
-}
-
-help_doc = %(
+TRIGGER_PHRASE = 'weather'
+BOT_HELP = ">>> *Hello %s, thanks for trying %s!*\n" \
+    "To retrieve the weather, just type \"_#{TRIGGER_PHRASE} location_\", " \
+    " where _location_ is a zip code or a city, state\n" \
+    "_<https://github.com/robzr/Slabot|Slabot charges in a closet at night in github.>_\n"
+CMDLINE_HELP = %(
   \nGet Slack API token at https://api.slack.com/docs/oauth-test-tokens\n
   Get Weather Underground API key at: https://www.wunderground.com/weather/api\n
   Channels and channel regex's can be specified multiple times. If none are
   specified, the default behavior is to monitor all available channels.\n
 ).gsub(/^  /, '')
+
+require 'optparse'
+require 'weather_underground'
+require_relative 'slabot'
+
+slabot_options = { 
+  bot_name: 'Slabot',
+  post_options: { icon_emoji: ':partly_sunny:' },
+  debug: false
+}
 
 channels = []
 options = {}
@@ -35,33 +40,31 @@ options = {}
 OptionParser.new do |opts|
   opts.banner = "Usage: #{$PROGRAM_NAME.sub(%r{.*/}, '')} [-b bot_name] [-c channel|-r regex [-c ...|-r ...]] -s token -w key\n\n"
 
-  opts.on('-b', '--bot-name', '=MANDATORY', "Override default bot name (#{rubot_options[:bot_name]})") { |arg| rubot_options[:post_options][:bot_name] = arg }
+  opts.on('-b', '--bot-name', '=MANDATORY', "Override default bot name (#{slabot_options[:bot_name]})") { |arg| slabot_options[:post_options][:bot_name] = arg }
   opts.on('-c', '--channel', '=MANDATORY', 'Provide a channel name to monitor')                  { |arg| channels << arg }
-  opts.on('-h', '--help', 'Display this help.')                                                  { abort "#{opts.help}#{help_doc}" }
+  opts.on('-h', '--help', 'Display this help.')                                                  { abort "#{opts.help}#{CMDLINE_HELP}" }
   opts.on('-q', '--quiet', 'Suppress output.')                                                   {       options[:quiet] = true }
   opts.on('-r', '--channel-regex', '=MANDATORY', 'Provide a regex for channels to monitor')      { |arg| channels << %r{arg} }
-  opts.on('-s', '--slack-token', '=MANDATORY', 'Specify the Slack API token')                    { |arg| rubot_options[:slack_token] = arg }
+  opts.on('-s', '--slack-token', '=MANDATORY', 'Specify the Slack API token')                    { |arg| slabot_options[:slack_token] = arg }
   opts.on('-w', '--wu-key', '=MANDATORY', 'Specify the Weather Underground API key')             { |arg| options[:wu_key] = arg }
 end.parse!
 
-abort 'You must provide a Slack token - use -h for help' unless rubot_options[:slack_token]
+abort 'You must provide a Slack token - use -h for help' unless slabot_options[:slack_token]
 abort 'You must provide a Weather Underground token - use -h for help' unless options[:wu_key]
 
-rubot = Rubot::Rubot.new rubot_options.merge({ channels: channels, debug: true })
+slabot = Slabot::Slabot.new slabot_options.merge({ channels: channels, debug: true })
 
 unless options[:quiet]
-  puts "Using the name #{rubot.bot_name}\n" \
-       "Found #{rubot.users.length} users online\n" \
-       "Monitoring the following channels: #{rubot.channels(:subscribed).join(', ')}"
+  puts "Using the name #{slabot.bot_name}\n" \
+       "Found #{slabot.users.length} users online\n" \
+       "Monitoring the following channels: #{slabot.channels(:subscribed).join(', ')}"
 end
 
 get_weather = proc do |arg|
-  location = arg[:text].sub(/^weather\s+/, '')
+  location = arg[:text].sub(/^#{TRIGGER_PHRASE}\s+/, '')
   case location
   when 'help'
-    ">>> *Hello #{arg[:user]}, thanks for trying #{options[:bot_name]}!*\n" \
-    'To retrieve the weather, just type "_weather location_", where _location_ is a zip code or a city, state\n' \
-    "_<https://github.com/emmadev/sysutils/tree/master/Rubot|Rubot charges in a closet at night in github/emmadev.>_\n"
+    sprintf BOT_HELP, arg[:user], options[:bot_name]
   else
     print "Responding to #{arg[:user]} in #{arg[:channel]} for location #{location} - " unless options[:quiet]
     begin
@@ -74,36 +77,33 @@ get_weather = proc do |arg|
           puts 'could not find location.' unless options[:quiet]
           msg = ">_*Weather Underground could could not find the location #{location}, try again.*_"
         else
-          puts "wunderground returned error #{forecast['response']['error']['type']} " \
+          puts "Weather Underground returned error #{forecast['response']['error']['type']} " \
                "(#{forecast['response']['error']['description']})." unless options[:quiet]
-          msg = ">_*Weather Underground errored on type #{forecast['response']['error']['type']} " \
+          msg = ">_*Weather Underground returned error #{forecast['response']['error']['type']} " \
                 "(#{forecast['response']['error']['description']})*_"
         end
       elsif forecast['response'].key?('results')
         puts 'wunderground returned ambiguous results.' unless options[:quiet]
         msg = '>_*The location you tried is ambiguious, try something more specific.*_'
       else
-        wu = {}
-        wu[:location] = forecast['current_observation']['display_location']['full']
-        wu[:url]      = forecast['current_observation']['forecast_url']
-        wu[:temp]     = forecast['current_observation']['temp_f']
-        wu[:humidity] = forecast['current_observation']['relative_humidity']
-        wu[:weather]  = forecast['current_observation']['weather']
-        msg = "*It's currently <#{wu[:url]}|#{wu[:weather]} and #{wu[:temp]}° Degrees with #{wu[:humidity]} Humidity>" \
-          " in _#{wu[:location]}_*\n>>>"
-        forecast['forecast']['txt_forecast']['forecastday'].each do |fc|
-          msg << "*#{fc['title']}*  #{fc['fcttext']}\n"
+        msg = "*Current conditions: <#{forecast['current_observation']['forecast_url']}|" \
+          "#{forecast['current_observation']['weather']}, " \
+          "#{forecast['current_observation']['temp_f']}° Degrees with " \
+          "#{forecast['current_observation']['relative_humidity']} Humidity> in " \
+          "_#{forecast['current_observation']['display_location']['full']}_*\n>>>"
+        forecast['forecast']['txt_forecast']['forecastday'].each do |forecast_detail|
+          msg << "*#{forecast_detail['title']}*  #{forecast_detail['fcttext']}\n"
         end
         puts 'forecast successfully returned.' unless options[:quiet]
       end
       msg
-    rescue => msg
-      puts "Wunderground raised exception (#{msg})" unless options[:quiet]
-      "Sorry, had trouble speaking with Weather Underground (#{msg})"
+    rescue Exception => error_msg # TODO: clean handling
+      puts "Wunderground raised exception (#{error_msg})" unless options[:quiet]
+      "Sorry, had trouble speaking with Weather Underground (#{error_msg})"
     end
   end
 end
 
-rubot << Rubot::Trigger.new(conditions: /^w .+/, callback: get_weather)
+slabot << Slabot::Trigger.new(conditions: %r{^#{TRIGGER_PHRASE}\s+.+}, callback: get_weather)
 
-rubot.run
+slabot.run

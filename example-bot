@@ -1,14 +1,14 @@
 #!/usr/bin/env ruby
 #
-# Demonstration of Rubot API
-#   https://github.com/emmadev/sysutils/Rubot
+# Demonstration of Slabot API
+#   https://github.com/emmadev/sysutils/Slabot
 #     -- @robzr 3/2016
 
 require 'optparse'
-require_relative 'rubot'
+require_relative 'slabot'
 
 channels = []
-rubot_options = { }
+slabot_options = { }
 
 OptionParser.new do |opts|
   program_name = $PROGRAM_NAME.sub(%r{.*/}, '')
@@ -17,24 +17,24 @@ OptionParser.new do |opts|
   opts.on('-c', '--channel', '=MANDATORY', 'Provide a channel name to monitor')     { |arg| channels << arg }
   opts.on('-r', '--channel-regex', '=MANDATORY', 'Regex pattern to match channels') { |arg| channels << %r{#{arg}} }
   opts.on('-h', '--help', 'Display this help.')                                     { abort opts.help }
-  opts.on('-s', '--slack-token', '=MANDATORY', 'Specify the Slack API token')       { |arg| rubot_options[:slack_token] = arg }
+  opts.on('-s', '--slack-token', '=MANDATORY', 'Specify the Slack API token')       { |arg| slabot_options[:slack_token] = arg }
 end.parse!
 
-abort 'No Slack token specified - use -h for help' unless rubot_options[:slack_token]
+abort 'No Slack token specified - use -h for help' unless slabot_options[:slack_token]
 
-rubot = Rubot::Rubot.new rubot_options.merge({ channels: channels })
+slabot = Slabot::Slabot.new slabot_options.merge({ channels: channels })
 
 # Display details about the slack connection and bot state
-puts "Logged into Slack as #{rubot.slack['user']} in team #{rubot.slack['team']} (#{rubot.slack['url']})"
-puts "All available channels\n -> #{rubot.channels.join("\n -> ")}"
-puts "All users\n -> #{rubot.users.join("\n -> ")}"
-puts "Subscribed channels\n -> #{rubot.channels(:subscribed).join("\n -> ")}"
+puts "Logged into Slack as #{slabot.slack['user']} in team #{slabot.slack['team']} (#{slabot.slack['url']})"
+puts "All available channels\n -> #{slabot.channels.join("\n -> ")}"
+puts "All users\n -> #{slabot.users.join("\n -> ")}"
+puts "Subscribed channels\n -> #{slabot.channels(:subscribed).join("\n -> ")}"
 
 # Most simple incantation
-rubot << Rubot::Trigger.new(conditions: 'hello rubot', callback: 'Hello, my friend')
+slabot << Slabot::Trigger.new(conditions: 'hello slabot', callback: 'Hello, my friend')
 
 # Using a regex condition and an inline proc callback
-rubot << Rubot::Trigger.new(conditions: /(who|how) are you, rubot/, callback: proc { |arg| "I\'m here and I\'m fine, #{arg[:user]}" })
+slabot << Slabot::Trigger.new(conditions: /(who|how) are you, slabot/, callback: proc { |arg| "I\'m here and I\'m fine, #{arg[:user]}" })
 
 # More complex Trigger, using externally declared procs for both conditions and a trigger
 i_was_triggered = proc do |arg|
@@ -43,15 +43,15 @@ end
 
 conditions = [
   proc do |arg|
-    arg[:channel] == 'general' && arg[:text].length < 15 && arg[:text] =~ /^rubot short/i
+    arg[:channel] == 'general' && arg[:text].length < 15 && arg[:text] =~ /^slabot short/i
   end,
   proc do |arg|
-  arg[:channel] == 'general' && arg[:text].length > 15 && arg[:text] =~ /^rubot long/i
+  arg[:channel] == 'general' && arg[:text].length > 15 && arg[:text] =~ /^slabot long/i
   end
 ]
 
-rubot << Rubot::Trigger.new(conditions: conditions, callback: i_was_triggered)
+slabot << Slabot::Trigger.new(conditions: conditions, callback: i_was_triggered)
 
-puts "Defined #{rubot.triggers.length} triggers"
+puts "Defined #{slabot.triggers.length} triggers"
 
-rubot.run
+slabot.run

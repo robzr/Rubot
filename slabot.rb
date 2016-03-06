@@ -1,9 +1,9 @@
 #
-# Rubot:: Small and simple to use multi-threaded Slack bot API -- @robzr
+# Slabot:: Small and simple to use multi-threaded Slack bot API -- @robzr
 #
 # Depends on slack-ruby: sudo gem install slack-ruby
 #
-module Rubot
+module Slabot
   require 'pp'
   require 'slack'
   require 'thread'
@@ -76,9 +76,9 @@ module Rubot
     end
   end
 
-  class Rubot
+  class Slabot
     # TODO: add default icon_url from github cdn
-    DEFAULT_POST_OPTIONS = { username: 'Rubot', icon_emoji: ':squirrel:', link_names: 'true', unfurl_links: 'false', parse: 'none' }
+    DEFAULT_POST_OPTIONS = { username: 'Slabot', icon_emoji: ':squirrel:', link_names: 'true', unfurl_links: 'false', parse: 'none' }
     THREAD_THROTTLE_DELAY = 0.01
 
     attr_accessor :post_options, :triggers
@@ -115,7 +115,7 @@ module Rubot
       update_users
       add_trigger trigger
     rescue Exception => msg # TODO: Refine
-      abort "Error Initializing Rubot: #{msg}"
+      abort "Error Initializing Slabot: #{msg}"
     end
 
     def bot_name
@@ -130,7 +130,7 @@ module Rubot
       case arg.class.name
       when 'String'
         add_channel arg
-      when 'Rubot::Trigger'
+      when 'Slabot::Trigger'
         add_trigger arg
       else
         raise "Error trying to add class #{arg.class.name}"
@@ -157,7 +157,7 @@ module Rubot
       elsif query_type == :subscribed
         @channels.values.map { |ch| ch['name'] }
       else
-        raise "Rubot#channels called with invalid argument #{all_or_available}"
+        raise "Slabot#channels called with invalid argument #{all_or_available}"
       end
     end
 
@@ -237,7 +237,7 @@ module Rubot
 
     def add_trigger(trigger)
       case trigger.class.name
-      when 'Rubot::Trigger'
+      when 'Slabot::Trigger'
         @triggers << trigger if trigger
       when 'Array'
         trigger.each { |trig| add_trigger trig }

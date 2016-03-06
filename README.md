@@ -1,6 +1,6 @@
-# Rubot
-Ruby API for creating Slack Bots
+# Slabot
+Simple and extensible Slack Bot Ruby gem
 
-- **rubot** - Small example bot implementation
-- **rubot-weather** - Example Bot that retrieves weather from Weather Underground
-- **rubot.rb** - Rubot module for implementing Slack Bots
+- **example-bot** - Small example bot implementation
+- **slabot.rb** - Slabot module for implementing Slack Bots
+- **weather-bot** - Weather Underground Bot 
