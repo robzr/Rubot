@@ -42,7 +42,7 @@ will usually be a Proc or Method.
 * Bundle and distribute on rubygems.org
 
 ###License & Credits
-* The SlackRTM class is based on [Rémi Delhaye's slack-rtm-api gem](https://github.com/rdlh/slack-rtm-api)
+* The InstantSlackBot::SlackRTM class is based on [Rémi Delhaye's slack-rtm-api gem](https://github.com/rdlh/slack-rtm-api)
 
 ```
 Copyright 2016 Rob Zwissler (rob@zwissler.org)
