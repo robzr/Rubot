@@ -1,5 +1,5 @@
 # InstantSlackBot
-Easy to use Ruby framework for quickly creating Slack Bots
+Easy to use Ruby API for quickly creating Slack Bots
 - Lightweight and minimal layer on top of Slack APIs
 - Simple, intuitive and extensible Ruby API
 - Fully multithreaded for efficient and fast response
