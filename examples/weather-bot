@@ -35,7 +35,7 @@ BOT_HELP = ">>> *Hello @%s, thanks for trying #{BOT_NAME}!*\n" \
     "To retrieve the weather, just type \"_#{TRIGGER_PHRASE} location_\", " \
     " where _location_ is a zip code or a city, state\n" \
     "_<https://github.com/robzr/instant-slack-bot|" \
-    "See where #{BOT_NAME} charges in a closet at night.>_\n"
+    "See the closet where #{BOT_NAME} charges at night.>_\n"
 CMDLINE_HELP = %(
   \nGet Slack API token at https://api.slack.com/docs/oauth-test-tokens\n
   Get Weather Underground API key at: https://www.wunderground.com/weather/api\n
