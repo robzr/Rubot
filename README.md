@@ -30,8 +30,8 @@ Or by using Procs for conditions and actions, more [sophisticated bots can easil
 * Create a **InstantSlackBot::Master** instance to communicate with the Slack API - you can 
 [get an API token here](https://api.slack.com/docs/oauth-test-tokens).
 * Create at least one **InstantSlackBot::Bot**. Each Bot needs at least one condition and an action.
-* **conditions** determine when the Bot responds, can be as simple as a text string or 
-  regular expression which is matched against each message, or a Proc for more sophisticated matching.
+* **conditions** determine when the Bot responds and can be as simple as a text string or 
+  regular expression which is matched against each message, or a Proc for more sophisticated logic.
 * Multiple conditions can matched with boolean **and** or **or** logic (**or** is the default).
 * An **action** forms the response when the conditions are met. An action can be as simple as a text string, but 
 will usually be a Proc.
