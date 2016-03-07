@@ -88,7 +88,8 @@ module InstantSlackBot #:nodoc:
     # @param :channel [String] (see #check)
     # @param :text [String] (see #check)
     # @param :user [String] (see #check)
-    def check_condition(condition: condition, text: nil, user: nil, channel: nil)
+    # @param :message [SlackMessage] Slack Message hash
+    def check_condition(condition: condition, text: nil, user: nil, channel: nil, message: nil)
       case condition.class.name
       when 'String'
         run_action = true if /\b#{condition}\b/i.match(text)

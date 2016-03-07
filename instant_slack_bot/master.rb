@@ -6,22 +6,23 @@
 module InstantSlackBot
   require 'pp'
   require 'slack'
+#  require 'slack-rtm-api'
   require 'thread'
 
   class Master
     # TODO: add default icon_url from github cdn
     DEFAULT_BOT_NAME = 'InstantSlackBot'
     DEFAULT_POST_OPTIONS = { icon_emoji: ':squirrel:', link_names: 'true', unfurl_links: 'false', parse: 'none' }
-    THREAD_THROTTLE_DELAY = 0.01
+    THREAD_THROTTLE_DELAY = 0.001
 
-    attr_accessor :post_options, :bots
+    attr_accessor :post_options, :bots, :max_threads, :max_threads_per_bot
 
     def initialize(
       bots: nil,
       channels: nil,
       debug:false,
-      max_threads: 100,
-      max_threads_per_channel: 5,
+      max_threads: 50,
+      max_threads_per_bot: 20,
       name: DEFAULT_BOT_NAME,
       post_options: {},
       token: nil
@@ -30,7 +31,7 @@ module InstantSlackBot
       @channel_criteria = channels
       @debug = debug
       @max_threads = max_threads
-      @max_threads_per_channel = max_threads_per_channel
+      @max_threads_per_bot = max_threads_per_bot
       @post_options = DEFAULT_POST_OPTIONS
       @post_options.merge!({ username: name }) if name
       @post_options.merge!(post_options)
@@ -40,20 +41,37 @@ module InstantSlackBot
       @slack_info = {}
       @threads = {}
       @users = {}
+      @receive_message_queue = []
 
-    begin
-      @slack = Slack::RPC::Client.new(@token)
-      auth_test = @slack.auth.test
-    rescue Exception => msg # TODO: Refine
-      abort "Error Initializing InstantSlackBot: #{msg}"
-    end
+      connect_to_slack_webrpc
+      connect_to_slack_rtm
 
-      @slack_connection = auth_test.body
-      raise "Error authenticating to Slack" unless @slack_connection['ok']
+      @slack_connection = @slack.auth.test.body
+      raise "Error authenticating to Slack Web RPC" unless @slack_connection['ok']
 
       update_channels
       update_users
       add_bot bots
+    end
+
+    def connect_to_slack_webrpc
+      @slack = Slack::RPC::Client.new(@token)
+      auth_test = @slack.auth.test
+    rescue StandardError => msg # TODO: Refine
+      abort "Error Initializing Slack WebRPC: #{msg}"
+    end
+
+    def connect_to_slack_rtm
+      @slack_rtm = SlackRTMApi::ApiClient.new(
+        token: @token,
+        debug: false)
+      add_to_queue = proc do |message|
+        # We could do more filtering here
+        @receive_message_queue << message
+      end
+      @slack_rtm.bind(event_type: :message, event_handler: add_to_queue)
+    rescue StandardError => msg # TODO: Refine
+      abort "Error Initializing Slack RTM: #{msg}"
     end
 
     def name
@@ -64,6 +82,7 @@ module InstantSlackBot
       @post_options[:username] = name
     end
 
+    # TODO: should merge with RTM info
     def slack
       @slack_connection
     end
@@ -113,61 +132,18 @@ module InstantSlackBot
     #
     # TODO: improve error handling
     def run
-      last_read_ts = {}
-      @channels.each do |ch_id, ch_obj|
-        last_read_ts[ch_id] = 0
-        history = @slack.channels.history(channel: ch_id, count: 1)
-        last_read_ts[ch_id] = defined?(history.body['messages'][0]['ts']) ? history.body['messages'][0]['ts'] : 0
-      end
-      mutex = Mutex.new
       loop do
-        @channels.each do |ch_id, ch_obj|
-          if @threads[ch_id].nil? || @threads[ch_id].length < @max_threads_per_channel
-            @threads[ch_id] = [] unless @threads[ch_id]
-            @threads[ch_id] << Thread.new {
-              need_to_process = false
-              history = nil
-              process_message = nil
-              mutex.synchronize do
-                begin
-                  slack_client = Slack::RPC::Client.new(@token)
-                  history = slack_client.channels.history(channel: ch_id, oldest: last_read_ts[ch_id], count: 1000)
-                  if defined?(history.body['messages']) && history.body['messages'] && history.body['messages'].length > 0
-                    last_read_ts[ch_id] = history.body['messages'][0]['ts']
-                    history.body['messages'].reverse_each do |message|
-                      if message['type'] == 'message'
-                        process_message = message
-                        need_to_process = true
-                      elsif ['channel_joined', 'channel_left', 'user_change', 'team_join'].include? message['type']
-                        update_users
-                      elsif message['type'] =~ /^channel_/
-                        update_channels
-                      else
-                        # we'll need to handle other messages
-                        puts "Master#run received message: #{message['type']}: #{message.pretty_inspect}" if @debug
-                      end
-                    end
-                  end
-                rescue Exception => msg # TODO: Refine
-                  puts "Error: Exception #{msg} caught in be_a_bot"
-                  need_to_process = false
-                end
-              end
-              process_message(message: process_message, channel: ch_id) if need_to_process
-            }
+        if message = @receive_message_queue.shift then
+          # First we process potential bot events
+          if ['channel_join', 'channel_leave', 'user_change', 'team_join'].include? message['type']
+            update_users
+          elsif message['type'] =~ /^channel_(created|deleted|rename|archive|unarchive)$/
+            update_channels
           end
+          process_message(message: message)
+        else
+          sleep THREAD_THROTTLE_DELAY
         end
-        # expire completed threads, compact the arrays
-        @threads.each_key do |ch_id|
-          @threads[ch_id].each_index do |tidx|
-            if [nil, false].include? @threads[ch_id][tidx].status
-              @threads[ch_id][tidx].join
-              @threads[ch_id][tidx] = nil
-            end
-            @threads[ch_id].compact!
-          end
-        end
-        sleep THREAD_THROTTLE_DELAY
       end
     end
 
@@ -209,7 +185,7 @@ module InstantSlackBot
             end
           end
         end
-      rescue Exception => msg # TODO: Refine
+      rescue StandardError => msg # TODO: Refine
         abort "Error: could not update channels (#{msg})"
       end
     end
@@ -219,30 +195,33 @@ module InstantSlackBot
         @slack.users.list.body['members'].each do |user|
           @users[user['id']] = user
         end
-      rescue Exception => msg # TODO: Refine
+      rescue StandardError => msg # TODO: Refine
         abort "Error: could not update users (#{msg})"
       end
     end
 
-    def process_message(message: message, channel: channel)
-      user = message['username'] || @users[message['user']]['name'] 
-
-      # TODO: better checking to make sure we do not respond to a bot
-      if defined?(message['username']) && message['username'] != self.name()
-        catch (:triggered) do
-          @bots.each do |bot|
-            bot_response = bot.check(text: message['text'], user: user, channel: @channels[channel]['name'])
-            if bot_response
-              bot_response = { text: bot_response.to_s } if bot_response.class.name != 'Hash'
-              begin
-                @slack.chat.postMessage @post_options.merge({ channel: channel }).merge(bot_response)
-              rescue Exception => msg # TODO: Refine
-                abort "Error: could not postMessage: #{msg}"
-              end
-              throw :triggered
+    def process_message(message: message)
+      return if message.key?('subtype') && message['subtype'] == 'bot_message'
+      username = message['username']
+      username ||= @users[message['user']]['name'] if @users[message['user']]
+      channel = message['channel']
+      @bots.each do |bot|
+          # TODO: eliminate everything except message (?)
+          #   offer a means to add user_typing
+          bot_response = bot.try(
+            text: message['text'], 
+            user_name: username, 
+            channel_name: @channels[channel]['name'], 
+            message: message
+          )
+          if bot_response
+            bot_response = { text: bot_response.to_s } unless bot_response.class.name == 'Hash'
+            begin
+              @slack.chat.postMessage @post_options.merge({ channel: channel }).merge(bot_response)
+            rescue StandardError => msg # TODO: Refine
+              abort "Error: could not postMessage: #{msg}"
             end
           end
-        end
       end
     end
   end
