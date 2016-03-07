@@ -93,7 +93,7 @@ module InstantSlackBot #:nodoc:
     # @param :channel [String] Channel name where the message originated
     # @param :text [String] Text of the message
     # @param :user [String] Username who wrote the message
-    def check(args)
+    def check_conditions(args)
       run_action = false
       case @logic
       when :or
@@ -106,7 +106,11 @@ module InstantSlackBot #:nodoc:
           run_action &&= check_condition args.merge({ condition: cond })
         end
       end
-      @action.call(args[:message]) if run_action
+      run_action
+    end
+
+    def run_action(args)
+      @action.call(args)
     end
 
     private
@@ -120,11 +124,11 @@ module InstantSlackBot #:nodoc:
     def check_condition(condition: nil, message: nil)
       case condition.class.name
       when 'String'
-        run_action = true if /\b#{condition}\b/i.match(message['text'])
+        true if /\b#{condition}\b/i.match(message['text'])
       when 'Regexp'
-        run_action = true if condition.match(message['text'])
+        true if condition.match(message['text'])
       when 'Proc', 'Method'
-        run_action = true if condition.call(message: message)
+        true if condition.call(message: message)
       else
         raise "Condition (#{condition}) is an invalid class (#{condition.class.name})"
       end

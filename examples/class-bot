@@ -58,34 +58,30 @@ end.parse!
 
 abort 'Missing Slack token - use -h for help' unless instabot_options[:token]
 
-# inconsistency: condition must have message[] whereas action can use arg[...]
-# probably prefer the first type - may be specific with Method type (?)
-# need to check proc.
-module TestBot
+# Update to use environment variable for token, and get rid of options
+
+module MyModule
+
   class Conditions
     def test_condition(message: message)
-      puts "test_condition"
-      pp message
-      case message['text']
-      when /^test/
-        true
-      else
-        false
-      end
+      return true if message['text'] =~ /^test/
+      return true if message['username'] =~ /^r/
+      return true if message['channel'] =~ /^bot_heaven/
+      false
     end
   end
+
   class Action
-    def respond_to_user(arg)  
-      puts "respond_to_user"
-      pp arg
-      "I am responding to @#{arg['username']} in channel ##{arg['channelname']}\n" \
+    def respond_to_user(message: message)
+      "I am responding to @#{message['username']} in channel ##{message['channelname']}\n" \
       ">>> <http://github.com|github>"
     end
   end
+
 end
 
-condition = TestBot::Conditions.new
-action = TestBot::Action.new
+condition = MyModule::Conditions.new
+action = MyModule::Action.new
 
 InstantSlackBot::Master.new(instabot_options.merge({ 
   channels: channels, 

@@ -249,7 +249,7 @@ module InstantSlackBot
           end
         end
       end
-    rescue StandardError => msg # TODO: Refine
+    rescue StandardError => msg
       abort "Error: could not update channels (#{msg})"
     end
 
@@ -257,17 +257,19 @@ module InstantSlackBot
       @slack.users.list.body['members'].each do |user|
         @users[user['id']] = user
       end
-    rescue StandardError => msg # TODO: Refine
+    rescue StandardError => msg
       abort "Error: could not update users (#{msg})"
     end
 
     def process_message(message: message)
       return true if message.key?('subtype') && message['subtype'] == 'bot_message'
       return true if message['type'] != 'message'
-      if thread_count < @max_threads
-        @bots.each do |bot_id, bot| 
-          @threads[bot_id] << Thread.new {
-            bot_response = bot.check(message: message_plus(message: message))
+      return false if thread_count >= @max_threads
+      @bots.each do |bot_id, bot| 
+        @threads[bot_id] << Thread.new {
+          if bot.check_conditions(message: message_plus(message: message))
+            # TODO: submit an is_typing method to API
+            bot_response = bot.run_action(message: message_plus(message: message))
             begin
               if bot_response
                 if bot_response.class.name != 'Hash'
@@ -277,15 +279,13 @@ module InstantSlackBot
                   channel: message['channel']
                 }).merge(bot_response)
               end
-            rescue StandardError => msg # TODO: Refine
+            rescue StandardError => msg
               abort "process_message postMessage error: #{msg}"
             end
-          }
-        end
-        true
-      else
-        false
+          end
+        }
       end
+      true
     end
 
     def thread_count
