@@ -46,7 +46,7 @@ will usually be a Proc.
 * Bundle and distribute on rubygems.org
 
 ###License & Credits
-* The SlackRTM class is based on (Rémi Delhaye's slack-rtm-api gem)[https://github.com/rdlh/slack-rtm-api]
+* The SlackRTM class is based on [Rémi Delhaye's slack-rtm-api gem](https://github.com/rdlh/slack-rtm-api)
 
 ```
 Copyright 2016 Rob Zwissler (rob@zwissler.org)
