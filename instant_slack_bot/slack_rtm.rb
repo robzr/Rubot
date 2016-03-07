@@ -67,7 +67,7 @@ module InstantSlackBot
         start if auto_start
         wait_for_open(open_wait_timeout: open_wait_timeout) if open_wait_timeout
       else
-        raise ArgumentError.new 'SlackRTMApi::ApiClient missing token'
+        raise ArgumentError.new 'InstantSlackBot::SlackRTM missing token'
       end
     end
 
@@ -124,7 +124,7 @@ module InstantSlackBot
       @connection_status = :connecting
       @socket = OpenSSL::SSL::SSLSocket.new TCPSocket.new(@url.host, 443)
       @socket.connect
-      @driver = WebSocket::Driver.client SlackRTMApi::ClientWrapper.new(@url.to_s, @socket)
+      @driver = WebSocket::Driver.client InstantSlackBot::RTMClientWrapper.new(@url.to_s, @socket)
       register_driver_events
       @last_activity = Time.now.to_i
       @driver.start
@@ -186,7 +186,7 @@ module InstantSlackBot
           @connection_status = :open
         when 'reconnect_url'
           @url = data['url']
-          send_log "SlackRTMApi::ApiClient#@driver.on :message URL Updated #{@url}"
+          send_log "InstantSlackBot::SlackRTM#@driver.on :message URL Updated #{@url}"
         else
           @event_handlers[:message].call data unless @event_handlers[:message].nil?
         end
@@ -215,4 +215,18 @@ module InstantSlackBot
     end
 
   end
+
+  class RTMClientWrapper
+    attr_accessor :url, :socket
+
+    def initialize(url, socket)
+      @url    = url
+      @socket = socket
+    end
+
+    def write(*args)
+      self.socket.write(*args)
+    end
+  end
+
 end
