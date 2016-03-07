@@ -4,8 +4,8 @@ Simple, extensible, multithreaded Slack Bot Ruby API
 - Simple, intuitive and extensible Ruby API
 - Fully multithreaded for efficient and fast response
 - Supports multiple bots per instance
-- Bot conditions are based on Strings, Regexps or Procs
-- Bot actions are based on Strings or Procs
+- Bot conditions are based on Strings, Regexps, Procs or Methods
+- Bot actions are based on Strings, Procs or Methods
 - Uses the RTM API to receive messages in realtime
 - Uses Web RPC API to post and transfer metadata
 
@@ -21,7 +21,7 @@ InstantSlackBot::Master.new(
 ).run
 ```
 
-Or by using Procs for conditions and actions, more [sophisticated bots can easily be made](examples).
+Or by using Procs or Methods for conditions and actions, more [sophisticated bots can easily be made](examples).
 
 <img src="https://raw.githubusercontent.com/robzr/instant-slack-bot/master/examples/pics/weather_bot_slack.png"
   alt="Example output from WeatherBot" height=542 width=815>
@@ -31,11 +31,11 @@ Or by using Procs for conditions and actions, more [sophisticated bots can easil
 [get an API token here](https://api.slack.com/docs/oauth-test-tokens).
 * Create at least one **InstantSlackBot::Bot**. Each Bot needs at least one condition and an action.
 * **conditions** determine when the Bot responds and can be as simple as a text string or 
-  regular expression which is matched against each message, or a Proc for more sophisticated logic.
+  regular expression which is matched against each message, or Procs/Methods for more sophisticated logic.
 * Multiple conditions can matched with boolean **and** or **or** logic (**or** is the default).
 * An **action** forms the response when the conditions are met. An action can be as simple as a text string, but 
-will usually be a Proc.
-* When using a Proc for conditions or actions, an optional hash argument will pass the message and details
+will usually be a Proc or Method.
+* When using a Procs and Methods for conditions or actions, an optional hash argument will pass the received message and details
 * Finally, register the Bots with the Master and call **Master#run** to begin operation.
 
 ####TODO

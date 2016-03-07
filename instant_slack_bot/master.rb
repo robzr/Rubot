@@ -25,13 +25,26 @@ module InstantSlackBot
   require 'thread'
 
   class Master
-    # TODO: add default icon_url from github cdn
     DEFAULT_BOT_NAME = 'InstantSlackBot'
+    DEFAULT_MAX_THREADS = 50
     DEFAULT_POST_OPTIONS = { 
       icon_emoji: ':squirrel:', 
       link_names: 'true', 
       unfurl_links: 'false', 
       parse: 'none' 
+    }
+    MESSAGE_TYPES_UPDATE_USERS = %w{ 
+      channel_join
+      channel_leave
+      team_join 
+      user_change 
+    }
+    MESSAGE_TYPES_UPDATE_CHANNELS = %w{
+      channel_archive
+      channel_created
+      channel_deleted
+      channel_rename
+      channel_unarchive
     }
     THREAD_THROTTLE_DELAY = 0.001
 
@@ -41,13 +54,12 @@ module InstantSlackBot
       bots: nil,
       channels: nil,
       debug:false,
-      max_threads: 50,
+      max_threads: DEFAULT_MAX_THREADS,
       name: DEFAULT_BOT_NAME,
       post_options: {},
       token: nil
     )
       @bots = {}
-      @channels = {}
       @channel_criteria = channels
       @debug = debug
       @max_threads = max_threads
@@ -57,7 +69,7 @@ module InstantSlackBot
       @token = token
 
       @slack = nil
-      @slack_info = {}
+      @channels = {}
       @threads = {}
       @users = {}
       @receive_message_queue = []
@@ -65,16 +77,18 @@ module InstantSlackBot
       connect_to_slack_webrpc
       @slack_connection = @slack.auth.test.body
       raise "Error authenticating to Slack Web RPC" unless @slack_connection['ok']
+
       update_channels
       update_users
       add_bot bots
+
       connect_to_slack_rtm
     end
 
     def connect_to_slack_webrpc
       @slack = Slack::RPC::Client.new(@token)
       auth_test = @slack.auth.test
-    rescue StandardError => msg # TODO: Refine
+    rescue StandardError => msg
       abort "Error Initializing Slack WebRPC: #{msg}"
     end
 
@@ -82,12 +96,9 @@ module InstantSlackBot
       @slack_rtm = InstantSlackBot::SlackRTM.new(
         token: @token,
         debug: false)
-      add_to_queue = proc do |message|
-        # We could do more filtering here
-        @receive_message_queue << message
-      end
+      add_to_queue = proc { |message| @receive_message_queue << message }
       @slack_rtm.bind(event_type: :message, event_handler: add_to_queue)
-    rescue StandardError => msg # TODO: Refine
+    rescue StandardError => msg
       abort "Error Initializing Slack RTM: #{msg}"
     end
 
@@ -99,9 +110,9 @@ module InstantSlackBot
       @post_options[:username] = name
     end
 
-    # TODO: should merge with RTM info
     def slack
-      @slack_connection
+      # TODO: merge RTM connection info
+      @slack_connection.merge({ })
     end
 
     def <<(arg)
@@ -135,8 +146,6 @@ module InstantSlackBot
         @slack.channels.list().body['channels'].map { |channel| channel['name'] }
       elsif query_type == :subscribed
         @channels.values.map { |ch| ch['name'] }
-      else
-        raise "InstantSlackBot#channels called with invalid argument #{all_or_available}"
       end
     end
 
@@ -144,28 +153,18 @@ module InstantSlackBot
       @users.values.map { |user| user['name'] }
     end
 
-    # The actual event loop - does not return (yet). We should modify this to take
-    #   an argument of how long to run, or try some thread coordination with the
-    #   calling method
-    #
-    # TODO: improve error handling
+    # Event loop - does not return (yet).
     def run
       loop do
-        # change this to a do instaed of a shift, in case we can't do a thread, 
-        #   we' won't shift it off
         if message = @receive_message_queue.shift then
           # First we process potential bot events
-          if ['channel_join', 'channel_leave', 'user_change', 'team_join']
-            .include? message['type']
-            update_users
-          elsif message['type'] =~ /^channel_(created|deleted|rename|archive|unarchive)$/
-            update_channels
-          end
+          update_users if MESSAGE_TYPES_UPDATE_USERS.include? message['type']
+          update_channels if MESSAGE_TYPES_UPDATE_CHANNELS.include? message['type']
           process_message(message: message) || @receive_message_queue.unshift(message)
-          compact_bot_threads
         else
           sleep THREAD_THROTTLE_DELAY
         end
+        compact_bot_threads
       end
     end
 
@@ -185,45 +184,26 @@ module InstantSlackBot
         add_bot InstantSlackBot::Bot.new(bot)
       when 'Array'
         bot.each { |bot| add_bot bot }
-      when 'NilClass'
       end
     end
 
     def compact_bot_threads
-      @threads.each_key do |bot_id|
-        @threads[bot_id].each_index do |tidx|
-        if [nil, false].include? @threads[bot_id][tidx].status
-          @threads[bot_id][tidx].join
-          @threads[bot_id][tidx] = nil
-        end
-          @threads[bot_id].compact!
+      @threads.each_value do |t_array|
+        t_array.each_index do |idx|
+          if [nil, false].include? t_array[idx].status
+            t_array[idx].join
+            t_array[idx] = nil
+          end
+          t_array.compact!
         end
       end
     end
 
     def message_plus(message: message)
       message.merge({ 
-        'channelname' => message_resolve_channelname(message),
-        'username' => message_resolve_username(message) 
+        'channelname' => resolve_channelname(message),
+        'username' => resolve_username(message) 
       })
-    end
-
-    def message_resolve_username(message)
-      if @users.key?(message['user'].to_s)
-        @users[message['user'].to_s]['name']
-      else
-        message['user']
-      end
-    end
-
-    def message_resolve_channelname(message)
-      if @channels.key?(message['channel'])
-        message['channel']
-      elsif message['channel'] =~ /^D0/
-        'Direct Message'
-      else
-        message['channel']
-      end
     end
 
     def render_channel_criteria
@@ -231,6 +211,25 @@ module InstantSlackBot
         @channel_criteria 
       else
         [%r{.*}]
+      end
+    end
+
+    def resolve_username(message)
+      if @users.key?(message['user'].to_s)
+        @users[message['user'].to_s]['name']
+      else
+        message['user']
+      end
+    end
+
+    def resolve_channelname(message)
+      if @channels.key?(message['channel'])
+        # TODO: test
+        @channels[@message['channel'].to_s]['name']
+      elsif message['channel'] =~ /^D0/
+        'Direct Message'
+      else
+        message['channel']
       end
     end
 

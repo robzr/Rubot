@@ -1,0 +1,99 @@
+#!/usr/bin/env ruby
+#
+# This file is part of instant-slack-bot.
+# Copyright 2016 Rob Zwissler (rob@zwissler.org)
+# https://github.com/robzr/instant-slack-bot
+#
+# Distributed under the terms of the GNU Affero General Public License
+# 
+# instant-slack-bot is free software: you can redistribute it and/or modify it 
+# under the terms of the GNU Affero General Public License as published by the
+# Free Software Foundation, either version 3 of the License, or (at your 
+# option) any later version.
+#   
+# instant-slack-bot is distributed in the hope that it will be useful, but 
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public 
+# License for more details.
+#   
+# You should have received a copy of the GNU Affero General Public License
+# along with instant-slack-bot. If not, see <http://www.gnu.org/licenses/>.
+#
+# InstantSlackBot based weather bot.
+#
+#   http://github.com/robzr/instant-slack-bot
+#
+#     -- @robzr 3/2016
+#
+# To Install, first:
+#
+# sudo gem install slack-api weather_underground
+
+TRIGGER_PHRASE = 'class'
+BOT_NAME = 'ClassBot'
+
+require 'pp'
+require 'optparse'
+require_relative '../instant_slack_bot'
+
+instabot_options = { 
+  name: BOT_NAME,
+  post_options: { icon_emoji: ':partly_sunny:' },
+  debug: false
+}
+
+channels = []
+options = {}
+
+OptionParser.new do |opts|
+  opts.banner = "Usage: #{$PROGRAM_NAME.sub(%r{.*/}, '')} " \
+    "-s token [-c channel|-r regex [-c ...|-r ...]]\n\n"
+
+  opts.on('-c', '--channel', '=MANDATORY', 'Provide a channel name to monitor')                   { |arg| channels << arg }
+  opts.on('-h', '--help', 'Display this help.')                                                   { abort "#{opts.help}#{CMDLINE_HELP}" }
+  opts.on('-q', '--quiet', 'Suppress output.')                                                    {       options[:quiet] = true }
+  opts.on('-r', '--channel-regex', '=MANDATORY', 'Provide a regex for channels to monitor')       { |arg| channels << %r{arg} }
+  opts.on('-s', '--slack-token', '=MANDATORY', 'Specify the Slack API token')                     { |arg| instabot_options[:token] = arg }
+end.parse!
+
+abort 'Missing Slack token - use -h for help' unless instabot_options[:token]
+
+# inconsistency: condition must have message[] whereas action can use arg[...]
+# probably prefer the first type - may be specific with Method type (?)
+# need to check proc.
+module TestBot
+  class Conditions
+    def test_condition(message: message)
+      puts "test_condition"
+      pp message
+      case message['text']
+      when /^test/
+        true
+      else
+        false
+      end
+    end
+  end
+  class Action
+    def respond_to_user(arg)  
+      puts "respond_to_user"
+      pp arg
+      "I am responding to @#{arg['username']} in channel ##{arg['channelname']}\n" \
+      ">>> <http://github.com|github>"
+    end
+  end
+end
+
+condition = TestBot::Conditions.new
+action = TestBot::Action.new
+
+InstantSlackBot::Master.new(instabot_options.merge({ 
+  channels: channels, 
+  debug: true,
+  bots: InstantSlackBot::Bot.new(
+    conditions: condition.method(:test_condition),
+    action: action.method(:respond_to_user)
+  )
+})).run
+
+

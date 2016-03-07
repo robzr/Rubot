@@ -55,7 +55,7 @@ module InstantSlackBot #:nodoc:
     # @param arg [Proc] Proc is run, the evaluation is printed
     def action=(arg)
       case arg.class.name
-      when 'Proc'
+      when 'Proc', 'Method'
         @action = arg
       when 'String'
         @action = proc { arg }
@@ -73,7 +73,7 @@ module InstantSlackBot #:nodoc:
       case arg.class.name
       when 'Array'
         @conditions += arg
-      when 'String', 'Regexp', 'Proc'
+      when 'String', 'Regexp', 'Proc', 'Method'
         @conditions << arg
       else
         raise "Condition (#{arg}) is an invalid class (#{arg.class.name})"
@@ -123,7 +123,7 @@ module InstantSlackBot #:nodoc:
         run_action = true if /\b#{condition}\b/i.match(message['text'])
       when 'Regexp'
         run_action = true if condition.match(message['text'])
-      when 'Proc'
+      when 'Proc', 'Method'
         run_action = true if condition.call(message: message)
       else
         raise "Condition (#{condition}) is an invalid class (#{condition.class.name})"
