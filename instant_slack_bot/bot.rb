@@ -1,11 +1,13 @@
 module InstantSlackBot #:nodoc:
   require 'pp'
   require 'slack'
+  require 'base64'
+  require 'openssl'
 
   # Bot class is used to define a set of conditions, which, once met, result in an action.
   class Bot
     attr_accessor :action, :logic, :debug
-    attr_reader :conditions
+    attr_reader :conditions, :id
 
     # Instantiates a Bot object
     # @note `:action` and `:conditions` are both required, but can be populated
@@ -24,6 +26,7 @@ module InstantSlackBot #:nodoc:
       @logic = logic
       self.action = action
       self.conditions = conditions
+      @id = random_sha1
     end
 
     # Used to assign actions to this Bot instance
@@ -73,12 +76,16 @@ module InstantSlackBot #:nodoc:
       run_action = false
       case @logic
       when :or
-        @conditions.each { |cond| run_action ||= check_condition args.merge({ condition: cond }) }
+        @conditions.each do |cond|
+          run_action ||= check_condition args.merge({ condition: cond })
+        end
       when :and
         run_action = true
-        @conditions.each { |cond| run_action &&= check_condition args.merge({ condition: cond }) }
+        @conditions.each do |cond| 
+          run_action &&= check_condition args.merge({ condition: cond })
+        end
       end
-      @action.call(args) if run_action
+      @action.call(args[:message]) if run_action
     end
 
     private
@@ -89,17 +96,21 @@ module InstantSlackBot #:nodoc:
     # @param :text [String] (see #check)
     # @param :user [String] (see #check)
     # @param :message [SlackMessage] Slack Message hash
-    def check_condition(condition: condition, text: nil, user: nil, channel: nil, message: nil)
+    def check_condition(condition: nil, message: nil)
       case condition.class.name
       when 'String'
-        run_action = true if /\b#{condition}\b/i.match(text)
+        run_action = true if /\b#{condition}\b/i.match(message['text'])
       when 'Regexp'
-        run_action = true if condition.match(text)
+        run_action = true if condition.match(message['text'])
       when 'Proc'
-        run_action = true if condition.call(text: text, user: user, channel: channel)
+        run_action = true if condition.call(message: message)
       else
         raise "Condition (#{condition}) is an invalid class (#{condition.class.name})"
       end
+    end
+
+    def random_sha1
+      OpenSSL::HMAC.new(rand.to_s, 'sha1').to_s
     end
   end
 end

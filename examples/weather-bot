@@ -38,7 +38,8 @@ channels = []
 options = {}
 
 OptionParser.new do |opts|
-  opts.banner = "Usage: #{$PROGRAM_NAME.sub(%r{.*/}, '')} -s token -w key [-c channel|-r regex [-c ...|-r ...]]\n\n"
+  opts.banner = "Usage: #{$PROGRAM_NAME.sub(%r{.*/}, '')} " \
+    "-s token -w key [-c channel|-r regex [-c ...|-r ...]]\n\n"
 
   opts.on('-c', '--channel', '=MANDATORY', 'Provide a channel name to monitor')                   { |arg| channels << arg }
   opts.on('-h', '--help', 'Display this help.')                                                   { abort "#{opts.help}#{CMDLINE_HELP}" }
@@ -48,26 +49,31 @@ OptionParser.new do |opts|
   opts.on('-w', '--wu-key', '=MANDATORY', 'Specify the Weather Underground API key')              { |arg| options[:wu_key] = arg }
 end.parse!
 
-abort 'You must provide a Slack token - use -h for help' unless instabot_options[:token]
-abort 'You must provide a Weather Underground token - use -h for help' unless options[:wu_key]
+abort 'Missing Slack token - use -h for help' unless instabot_options[:token]
+abort 'Missing Weather Underground token - use -h for help' unless options[:wu_key]
 
-instabot = InstantSlackBot::Master.new instabot_options.merge({ channels: channels, debug: true })
+instabot = InstantSlackBot::Master.new instabot_options.merge({ 
+  channels: channels, 
+  debug: true 
+})
 
 unless options[:quiet]
   puts "Using the name #{instabot.name}\n" \
        "Found #{instabot.users.length} users online\n" \
-       "Monitoring the following channels: #{instabot.channels(:subscribed).join(', ')}"
+       "Monitoring the following channels: " \
+       "#{instabot.channels(:subscribed).join(', ')}"
 end
 
-get_weather = proc do |arg|
-  location = arg[:text].sub(/^#{TRIGGER_PHRASE}\s+/, '')
+get_weather = proc do |message|
+  location = message['text'].sub(/^#{TRIGGER_PHRASE}\s+/, '')
   case location
   when 'help'
-    sprintf BOT_HELP, arg[:user]
+    sprintf BOT_HELP, message['username']
   when 'location'
-    msg = ">_*Nice try @#{arg[:user]}, you clown.*_"
+    msg = ">_*Nice try @#{message['username']}, you clown.*_"
   else
-    print "Responding to #{arg[:user]} in #{arg[:channel]} for location #{location} - " unless options[:quiet]
+    print "Responding to #{message['username']} in #{message['channelname']} " \
+      "for location #{location} - " unless options[:quiet]
     begin
       msg = ''
       forecast = WeatherUnderground::Base.new(options[:wu_key]).forecast(location.to_s)
@@ -76,10 +82,11 @@ get_weather = proc do |arg|
         case forecast['response']['error']['type']
         when 'querynotfound'
           puts 'could not find location.' unless options[:quiet]
-          msg = ">_*Weather Underground could could not find the location #{location}, try again.*_"
+          msg = ">_*Weather Underground could could not find the location " \
+            "#{location}, try again.*_"
         else
-          puts "Weather Underground returned error #{forecast['response']['error']['type']} " \
-               "(#{forecast['response']['error']['description']})." unless options[:quiet]
+          puts "Weather Underground returned error #{forecast['response']['error']['type']}" \
+               " (#{forecast['response']['error']['description']})." unless options[:quiet]
           msg = ">_*Weather Underground returned error #{forecast['response']['error']['type']} " \
                 "(#{forecast['response']['error']['description']})*_"
         end
@@ -105,6 +112,9 @@ get_weather = proc do |arg|
   end
 end
 
-instabot << InstantSlackBot::Bot.new(conditions: %r{^#{TRIGGER_PHRASE}\s+\w+}, action: get_weather)
+instabot << InstantSlackBot::Bot.new(
+  conditions: %r{^#{TRIGGER_PHRASE}\s+\w+}, 
+  action: get_weather
+)
 
 instabot.run
