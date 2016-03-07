@@ -79,7 +79,7 @@ module InstantSlackBot
     end
 
     def connect_to_slack_rtm
-      @slack_rtm = SlackRTMApi::ApiClient.new(
+      @slack_rtm = InstantSlackBot::SlackRTM.new(
         token: @token,
         debug: false)
       add_to_queue = proc do |message|
