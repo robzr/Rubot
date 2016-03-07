@@ -98,19 +98,31 @@ module InstantSlackBot #:nodoc:
       case @logic
       when :or
         @conditions.each do |cond|
-          run_action ||= check_condition args.merge({ condition: cond })
+          if cond.class.name == 'Proc'
+            run_action ||= check_condition args.merge({ condition: cond })[:message]
+          else
+            run_action ||= check_condition args.merge({ condition: cond })
+          end
         end
       when :and
         run_action = true
         @conditions.each do |cond| 
-          run_action &&= check_condition args.merge({ condition: cond })
+          if cond.class.name == 'Proc'
+            run_action &&= check_condition args.merge({ condition: cond })[:message]
+          else
+            run_action &&= check_condition args.merge({ condition: cond })
+          end
         end
       end
       run_action
     end
 
     def run_action(args)
-      @action.call(args)
+      if @action.class.name == 'Proc'
+        @action.call(args[:message])
+      else
+        @action.call(args)
+      end
     end
 
     private
