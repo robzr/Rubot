@@ -1,9 +1,12 @@
 # InstantSlackBot
 
 Easy to use Ruby framework for creating Slack Bots featuring
-- Multithreaded channel monitoring for fast responses
+- Lightweight and super fast layer on top of Slack APIs
+- Fully multithreaded for efficient and fast response
 - Supports multiple bots per instance
-- Simple, intuitive and extensible Ruby syntax
+- Uses the RTM API to receive messages in realtime
+- Uses Web RPC API to post and transfer metadata
+- Simple, intuitive and extensible Ruby API
 - Bot conditions are based on Strings, Regexps or Procs
 - Bot actions are based on Strings or Procs
 
@@ -33,13 +36,11 @@ Or by using Procs for conditions and actions, more [sophisticated bots can easil
 * Multiple conditions can matched with boolean **and** or **or** logic (**or** is the default).
 * An **action** forms the response when the conditions are met. An action can be as simple as a text string, but 
 will usually be a Proc.
-* When using a Proc for conditions or actions, an optional hash argument will pass the message text, username and channel.
+* When using a Proc for conditions or actions, an optional hash argument will pass the message and details
 * Finally, register the Bots with the Master and call **Master#run** to begin operation.
 
 ####TODO
-* Convert to RTM
-* Add support for direct messaging / respones
+* Cache layer for bots - based on identical input, cache with time/hit count/size expire
 * Write is_typing while waiting for bot to respond (will have to track)
 * Update API documentation to RDoc standards
 * Bundle and distribute on rubygems.org
-
