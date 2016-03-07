@@ -44,3 +44,24 @@ will usually be a Proc.
 * Write is_typing while waiting for bot to respond (will have to track)
 * Update API documentation to RDoc standards
 * Bundle and distribute on rubygems.org
+
+###License & Credits
+* The SlackRTM class is based on (Rémi Delhaye's slack-rtm-api gem)[https://github.com/rdlh/slack-rtm-api]
+
+```
+Copyright 2016 Rob Zwissler (rob@zwissler.org)
+Distributed under the terms of the GNU Affero General Public License
+
+instant-slack-bot is free software: you can redistribute it and/or modify it 
+under the terms of the GNU Affero General Public License as published by the 
+Free Software Foundation, either version 3 of the License, or (at your 
+option) any later version.
+
+instant-slack-bot is distributed in the hope that it will be useful, but 
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public 
+License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with instant-slack-bot. If not, see <http://www.gnu.org/licenses/>.
+```
