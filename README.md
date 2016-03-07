@@ -13,15 +13,12 @@ Simple, extensible, multithreaded Slack Bot Ruby API
 <img src="https://raw.githubusercontent.com/robzr/instant-slack-bot/master/examples/pics/one_line_slack.png" 
   alt="Example output from one line bot" height=98 width=252>
 
-InstantSlackBot can be created in as little as one line (well, one Ruby line):
+InstantSlackBot can be created and run in as little as one line.
 ```ruby
-InstantSlackBot::Master.new(
-  token: 'xoxp-XXXXXXXXXXX-XXXXXXXXXXX-XXXXXXXXXXX-XXXXXXXXXX', 
-  bots: { conditions: 'hi', action: 'Hello!' }
-).run
+InstantSlackBot::Master.new(token: token, bots: { conditions: 'hi', action: 'Hello!' }).run
 ```
 
-Or by using Procs or Methods for conditions and actions, more [sophisticated bots can easily be made](examples).
+By passing Procs or Methods for conditions and actions, more [sophisticated bots can easily be made](examples).
 
 <img src="https://raw.githubusercontent.com/robzr/instant-slack-bot/master/examples/pics/weather_bot_slack.png"
   alt="Example output from WeatherBot" height=542 width=815>
