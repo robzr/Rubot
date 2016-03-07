@@ -14,12 +14,19 @@ instabot_options = { }
 
 OptionParser.new do |opts|
   program_name = $PROGRAM_NAME.sub(%r{.*/}, '')
-  opts.banner = "Usage: #{program_name} [-c channel [-c ...]] [-r regex [-r ...]] [-h] -s token\n\n"
+  opts.banner = "Usage: #{program_name} [-c channel [-c ...]] [-r regex [-r ...]] " \
+    "[-h] -s token\n\n"
 
-  opts.on('-c', '--channel', '=MANDATORY', 'Provide a channel name to monitor')     { |arg| channels << arg }
-  opts.on('-r', '--channel-regex', '=MANDATORY', 'Regex pattern to match channels') { |arg| channels << %r{#{arg}} }
-  opts.on('-h', '--help', 'Display this help.')                                     { abort opts.help }
-  opts.on('-s', '--slack-token', '=MANDATORY', 'Specify the Slack API token')       { |arg| instabot_options[:token] = arg }
+  opts.on('-c', '--channel', '=MANDATORY', 'Provide a channel name to monitor') do |arg|
+    channels << arg
+  end
+  opts.on('-r', '--channel-regex', '=MANDATORY', 'Regex pattern to match channels') do |arg|
+    channels << %r{#{arg}}
+  end
+  opts.on('-h', '--help', 'Display this help.') { abort opts.help }
+  opts.on('-s', '--slack-token', '=MANDATORY', 'Specify the Slack API token') do |arg|
+    instabot_options[:token] = arg
+  end
 end.parse!
 
 abort 'No Slack token specified - use -h for help' unless instabot_options[:token]
@@ -45,16 +52,20 @@ instabot << simple_bot
 # Regex trigger condition and an inline proc action
 instabot << InstantSlackBot::Bot.new(
   conditions: /(who|how) are you, instabot/, 
-  action: proc { |arg| "I\'m here and I\'m fine, @#{arg[:user]}." }
+  action: proc { |message| "I\'m here and I\'m fine, @#{message['username']}." }
 )
 
 # Proc based conditions and action
 conditions = [
-  proc do |arg|
-    arg[:channel] == 'general' && arg[:text].length < 15 && arg[:text] =~ /^instabot short/i
+  proc do |message|
+    message['channelname'] == 'general' && 
+      arg[:text].length < 15 &&
+      arg[:text] =~ /^instabot short/i
   end,
-  proc do |arg|
-    arg[:channel] == 'general' && arg[:text].length > 15 && arg[:text] =~ /^instabot long/i
+  proc do |message|
+    message['channelname'] == 'general' &&
+      message['text'].length > 15 &&
+      message['text'] =~ /^instabot long/i
   end
 ]
 action = proc do |arg|
@@ -64,10 +75,5 @@ end
 instabot << InstantSlackBot::Bot.new(conditions: conditions, action: action)
 
 puts "Running #{instabot.bots.length} bots"
-instabot.bots.each_index do |idx|
-  conditions = instabot.bots[idx].conditions
-  printf " -> #%d has %d condition%s\n", 
-    idx + 1, conditions.length, conditions.length > 1 ? 's' : ''
-end
 
 instabot.run
