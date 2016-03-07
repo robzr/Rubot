@@ -1,6 +1,6 @@
 # InstantSlackBot
 Simple, extensible, multithreaded Slack Bot Ruby API 
-- Lightweight and minimal layer on top of Slack APIs
+- Lightweight and transparent (when possible) layer on top of Slack APIs
 - Simple, intuitive and extensible Ruby API
 - Fully multithreaded for efficient and fast response
 - Supports multiple bots per instance
