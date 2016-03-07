@@ -1,13 +1,13 @@
 # InstantSlackBot
 Simple, extensible, multithreaded Slack Bot Ruby API 
-- Lightweight and transparent (when possible) layer on top of Slack APIs
-- Simple, intuitive and extensible Ruby API
+- Lightweight and mostly transparent layer on top of Slack APIs
+- Simple, intuitive and familiar Ruby API
 - Fully multithreaded for efficient and fast response
 - Supports multiple bots per instance
 - Bot conditions are based on Strings, Regexps, Procs or Methods
 - Bot actions are based on Strings, Procs or Methods
-- Uses the RTM API to receive messages in realtime
-- Uses Web RPC API to post and transfer metadata
+- Uses the Slack RTM API to receive messages in realtime
+- Uses the Slack Web RPC API to post and transfer metadata
 
 
 <img src="https://raw.githubusercontent.com/robzr/instant-slack-bot/master/examples/pics/one_line_slack.png" 
