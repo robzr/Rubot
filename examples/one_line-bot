@@ -1,6 +1,0 @@
-#!/usr/bin/env ruby
-require_relative '../instant_slack_bot'
-
-InstantSlackBot::Master.new(
-  token: 'xoxp-24567480576-24565556357-24567789968-9999999999', 
-  bots: { conditions: 'hi', action: 'Hello!' }).run
