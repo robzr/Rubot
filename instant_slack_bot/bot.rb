@@ -3,20 +3,20 @@
 # https://github.com/robzr/instant-slack-bot
 #
 # Distributed under the terms of the GNU Affero General Public License
-# 
-# instant-slack-bot is free software: you can redistribute it and/or modify it 
+#
+# instant-slack-bot is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License as published by the
-# Free Software Foundation, either version 3 of the License, or (at your 
+# Free Software Foundation, either version 3 of the License, or (at your
 # option) any later version.
-# 
-# instant-slack-bot is distributed in the hope that it will be useful, but 
-# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public 
+#
+# instant-slack-bot is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public
 # License for more details.
-# 
+#
 # You should have received a copy of the GNU Affero General Public License
 # along with instant-slack-bot. If not, see <http://www.gnu.org/licenses/>.
-# 
+#
 # InstantSlackBot::Bot class - defines a single Bot instance
 
 module InstantSlackBot #:nodoc:
@@ -25,10 +25,21 @@ module InstantSlackBot #:nodoc:
   require 'base64'
   require 'openssl'
 
-  # Bot class is used to define a set of conditions, which, once met, result in an action.
+  DEFAULT_OPTIONS = {
+    channels: nil,       # inherit from master
+    debug: false,        #
+    icon_emoji: nil,     # inherit from master
+    condition_logic: :or, # or :and
+    use_api: :webrpc,    # or :rtm
+    username: nil,       # inherit from master
+    to_channel: :origin  # :direct_message or 'channelname'
+  }
+
+  # Bot class is used to define a set of conditions, which, once met, result in
+  #   an action.
   class Bot
     attr_accessor :action, :logic, :debug
-    attr_reader :conditions, :id
+    attr_reader :conditions, :id, :options
 
     # Instantiates a Bot object
     # @note `:action` and `:conditions` are both required, but can be populated
@@ -37,17 +48,19 @@ module InstantSlackBot #:nodoc:
     # @param :conditions [String, Regexp, Proc] evaluated to determine when to
     #   run the `:action`
     # @param :debug [Boolean] used to enable debug output to stdout
-    # @param :logic [Symbol] `:and` or `:or` determines how to evaluate multiple conditions
+    # @param :logic [Symbol] `:and` or `:or` determines how to evaluate
+    #   multiple conditions
     def initialize(
-      action: nil, 
-      conditions: nil, 
-      debug: false,
+      action: nil,
+      conditions: nil,
+      options: nil,
       logic: :or
     )
-      @logic = logic
       self.action = action
       self.conditions = conditions
       @id = random_sha1
+      @options = DEFAULT_OPTIONS.merge(options)
+      @logic = logic
     end
 
     # Used to assign actions to this Bot instance
@@ -66,7 +79,7 @@ module InstantSlackBot #:nodoc:
     # @param arg [String, Regexp] Matches messages in Slack channels
     # @param arg [Proc] Proc is run, the evaluation is printed
     # @param arg [Array] One or more of Strings, Regexps, Procs, which are
-    #   evaluated using boolean AND or OR logic, based on the value of 
+    #   evaluated using boolean AND or OR logic, based on the value of
     #   `#logic`
     def conditions=(arg)
       @conditions = []
@@ -97,20 +110,28 @@ module InstantSlackBot #:nodoc:
       run_action = false
       case @logic
       when :or
-        @conditions.each do |cond|
+        @conditions.each do |condition|
           if cond.class.name == 'Proc'
-            run_action ||= check_condition args.merge({ condition: cond })[:message]
+            run_action ||= check_condition args.merge({
+              condition: condition
+            })[:message]
           else
-            run_action ||= check_condition args.merge({ condition: cond })
+            run_action ||= check_condition args.merge({
+              condition: condition
+            })
           end
         end
       when :and
         run_action = true
-        @conditions.each do |cond| 
+        @conditions.each do |condition|
           if cond.class.name == 'Proc'
-            run_action &&= check_condition args.merge({ condition: cond })[:message]
+            run_action &&= check_condition args.merge({
+              condition: condition
+            })[:message]
           else
-            run_action &&= check_condition args.merge({ condition: cond })
+            run_action &&= check_condition args.merge({
+              condition: condition
+            })
           end
         end
       end
@@ -120,8 +141,11 @@ module InstantSlackBot #:nodoc:
     def run_action(args)
       if @action.class.name == 'Proc'
         @action.call(args[:message])
-      else
+      elsif @action.class.name == 'Method'
         @action.call(args)
+      else
+        raise StandardError,
+          "InstantSlackBot::Bot#run_actions invalid class type #{msg}"
       end
     end
 
@@ -142,7 +166,8 @@ module InstantSlackBot #:nodoc:
       when 'Proc', 'Method'
         true if condition.call(message: message)
       else
-        raise "Condition (#{condition}) is an invalid class (#{condition.class.name})"
+        raise "Condition (#{condition}) is an invalid class " \
+          "(#{condition.class.name})"
       end
     end
 
