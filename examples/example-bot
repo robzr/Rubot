@@ -10,7 +10,7 @@ require 'optparse'
 require_relative '../instant_slack_bot'
 
 channels = []
-instabot_options = { }
+instabot_options = {}
 
 OptionParser.new do |opts|
   program_name = $PROGRAM_NAME.sub(%r{.*/}, '')

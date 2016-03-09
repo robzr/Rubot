@@ -1,26 +1,7 @@
-# This file is part of instant-slack-bot.
-# Copyright 2016 Rob Zwissler (rob@zwissler.org)
-# https://github.com/robzr/instant-slack-bot
-#
-# Distributed under the terms of the GNU Affero General Public License
-# 
-# instant-slack-bot is free software: you can redistribute it and/or modify it 
-# under the terms of the GNU Affero General Public License as published by the
-# Free Software Foundation, either version 3 of the License, or (at your 
-# option) any later version.
-#   
-# instant-slack-bot is distributed in the hope that it will be useful, but 
-# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public 
-# License for more details.
-#   
-# You should have received a copy of the GNU Affero General Public License
-# along with instant-slack-bot. If not, see <http://www.gnu.org/licenses/>.
-#
 # InstantSlackBot::SlackRTM - Slack RTM API class
 #
-# This file is based on slack-rtm-api by Rémi Delhaye, available 
-# at http://github.com/rdlh/slack-rtm-api
+# This class is based on Rémi Delhaye's slack-rtm-api
+#   http://github.com/rdlh/slack-rtm-api
 
 require 'json'
 require 'net/http'
@@ -124,7 +105,8 @@ module InstantSlackBot
       @connection_status = :connecting
       @socket = OpenSSL::SSL::SSLSocket.new TCPSocket.new(@url.host, 443)
       @socket.connect
-      @driver = WebSocket::Driver.client InstantSlackBot::RTMClientWrapper.new(@url.to_s, @socket)
+      @driver = WebSocket::Driver.client \
+        InstantSlackBot::WebSocketDriverClient.new(@url.to_s, @socket)
       register_driver_events
       @last_activity = Time.now.to_i
       @driver.start
@@ -216,11 +198,11 @@ module InstantSlackBot
 
   end
 
-  class RTMClientWrapper
+  class WebSocketDriverClient
     attr_accessor :url, :socket
 
     def initialize(url, socket)
-      @url    = url
+      @url = url
       @socket = socket
     end
 

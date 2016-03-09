@@ -1,22 +1,3 @@
-# This file is part of instant-slack-bot.
-# Copyright 2016 Rob Zwissler (rob@zwissler.org)
-# https://github.com/robzr/instant-slack-bot
-#
-# Distributed under the terms of the GNU Affero General Public License
-# 
-# instant-slack-bot is free software: you can redistribute it and/or modify it 
-# under the terms of the GNU Affero General Public License as published by the
-# Free Software Foundation, either version 3 of the License, or (at your 
-# option) any later version.
-#   
-# instant-slack-bot is distributed in the hope that it will be useful, but 
-# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public 
-# License for more details.
-#   
-# You should have received a copy of the GNU Affero General Public License
-# along with instant-slack-bot. If not, see <http://www.gnu.org/licenses/>.
-#
 # InstantSlackBot::Master class - multiple Bots run in a single Master class
 
 module InstantSlackBot
@@ -25,47 +6,19 @@ module InstantSlackBot
   require 'thread'
 
   class Master
-    DEFAULT_BOT_NAME = 'InstantSlackBot'
-    DEFAULT_MAX_THREADS = 50
-    DEFAULT_POST_OPTIONS = { 
-      icon_emoji: ':squirrel:', 
-      link_names: 'true', 
-      unfurl_links: 'false', 
-      parse: 'none' 
-    }
-    MESSAGE_TYPES_UPDATE_USERS = %w{ 
-      channel_join
-      channel_leave
-      team_join 
-      user_change 
-    }
-    MESSAGE_TYPES_UPDATE_CHANNELS = %w{
-      channel_archive
-      channel_created
-      channel_deleted
-      channel_rename
-      channel_unarchive
-    }
-    THREAD_THROTTLE_DELAY = 0.001
-
-    attr_accessor :post_options, :bots, :max_threads
+    attr_accessor :bots, :options, :post_options
 
     def initialize(
       bots: nil,
       channels: nil,
-      debug:false,
-      max_threads: DEFAULT_MAX_THREADS,
-      name: DEFAULT_BOT_NAME,
+      options: {},
       post_options: {},
       token: nil
     )
       @bots = {}
       @channel_criteria = channels
-      @debug = debug
-      @max_threads = max_threads
-      @post_options = DEFAULT_POST_OPTIONS
-      @post_options.merge!({ username: name }) if name
-      @post_options.merge!(post_options)
+      @options = DEFAULT_MASTER_OPTIONS.merge(options)
+      @post_options = DEFAULT_MASTER_POST_OPTIONS.merge(post_options)
       @token = token
 
       @slack = nil
@@ -95,19 +48,12 @@ module InstantSlackBot
     def connect_to_slack_rtm
       @slack_rtm = InstantSlackBot::SlackRTM.new(
         token: @token,
-        debug: false)
+        debug: options[:debug]
+      )
       add_to_queue = proc { |message| @receive_message_queue << message }
       @slack_rtm.bind(event_type: :message, event_handler: add_to_queue)
     rescue StandardError => msg
       abort "Error Initializing Slack RTM: #{msg}"
-    end
-
-    def name
-      @post_options[:username]
-    end
-
-    def name=(name)
-      @post_options[:username] = name
     end
 
     def slack
@@ -124,7 +70,7 @@ module InstantSlackBot
       when 'InstantSlackBot::Bot', 'Hash'
         add_bot arg
       else
-        raise "Error trying to add class #{arg.class.name}"
+        raise "Master invalid class #{arg.class.name}"
       end
     end
 
@@ -136,7 +82,7 @@ module InstantSlackBot
       when 'String', 'Regexp', 'Proc'
         @channel_criteria << arg
       else
-        raise "Channel (#{arg}) is an invalid class (#{arg.class.name})"
+        raise "Master#channel=(#{arg}) invalid class (#{arg.class.name})"
       end
       update_channels
     end
@@ -224,8 +170,9 @@ module InstantSlackBot
 
     def resolve_channelname(message)
       if @channels.key?(message['channel'])
-        # TODO: test
-        @channels[@message['channel'].to_s]['name']
+        @channels[message['channel'].to_s]['name']
+      elsif message['channel'] =~ /^C0/
+        'Group Message'
       elsif message['channel'] =~ /^D0/
         'Direct Message'
       else
@@ -261,32 +208,56 @@ module InstantSlackBot
       abort "Error: could not update users (#{msg})"
     end
 
-    def process_message(message: message)
+    def post_message(bot: nil, response: nil)
+      return unless response
+      response = { text: response.to_s } if response.class.name != 'Hash'
+      if bot.options[:use_api] == :rtm
+        @slack_rtm.send(
+          @post_options.merge({ channel: message['channel'] })
+          .merge(bot.options[:post_options])
+          .merge(bot_response)
+          .merge({ 'type' => 'message' })
+        )
+      elsif bot.options[:use_api] == :web_rpc
+        @slack.chat.postMessage(
+          @post_options.merge({ channel: message['channel'] })
+          .merge(bot.options[:post_options])
+          .merge(bot_response)
+          .merge({ 'type' => 'message' })
+        )
+      end
+    rescue StandardError => msg
+      abort "Master#post_message error: #{msg}"
+    end
+
+    def set_user_typing(bot: nil, message: nil)
+      @slack_rtm.send({ 'channel' => message['channel'], 'type' => 'typing', 'as_user' => 'true' })
+    end
+
+    def process_message(message: nil)
       return true if message.key?('subtype') && message['subtype'] == 'bot_message'
       return true if message['type'] != 'message'
-      return false if thread_count >= @max_threads
+      return false if thread_count >= options[:max_threads]
       @bots.each do |bot_id, bot| 
         @threads[bot_id] << Thread.new {
-          if bot.check_conditions(message: message_plus(message: message))
+          message_plussed = message_plus(message: message)
+          if bot.check_conditions(message: message_plussed)
+
             # TODO: submit an is_typing method to API
-            bot_response = bot.run_action(message: message_plus(message: message))
-            begin
-              if bot_response
-                if bot_response.class.name != 'Hash'
-                  bot_response = { text: bot_response.to_s }
-                end
-                @slack.chat.postMessage @post_options.merge({
-                  channel: message['channel']
-                }).merge(bot_response)
-              end
-            rescue StandardError => msg
-              abort "process_message postMessage error: #{msg}"
-            end
+            # typing can be done every 3 seconds via a thread 
+            @slack.users.setActive({ })
+            @slack.users.setPresence({ 'presence' => 'auto' })
+
+            post_message(
+              bot: bot, 
+              response: bot.run_action(message: message_plussed)
+            )
           end
         }
       end
       true
     end
+
 
     def thread_count
       @threads.values.map { |thread_a| thread_a.length }.reduce(:+)

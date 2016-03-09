@@ -1,22 +1,3 @@
-# This file is part of instant-slack-bot.
-# Copyright 2016 Rob Zwissler (rob@zwissler.org)
-# https://github.com/robzr/instant-slack-bot
-#
-# Distributed under the terms of the GNU Affero General Public License
-#
-# instant-slack-bot is free software: you can redistribute it and/or modify it
-# under the terms of the GNU Affero General Public License as published by the
-# Free Software Foundation, either version 3 of the License, or (at your
-# option) any later version.
-#
-# instant-slack-bot is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public
-# License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with instant-slack-bot. If not, see <http://www.gnu.org/licenses/>.
-#
 # InstantSlackBot::Bot class - defines a single Bot instance
 
 module InstantSlackBot #:nodoc:
@@ -24,16 +5,6 @@ module InstantSlackBot #:nodoc:
   require 'slack'
   require 'base64'
   require 'openssl'
-
-  DEFAULT_OPTIONS = {
-    channels: nil,       # inherit from master
-    debug: false,        #
-    icon_emoji: nil,     # inherit from master
-    condition_logic: :or, # or :and
-    use_api: :webrpc,    # or :rtm
-    username: nil,       # inherit from master
-    to_channel: :origin  # :direct_message or 'channelname'
-  }
 
   # Bot class is used to define a set of conditions, which, once met, result in
   #   an action.
@@ -53,14 +24,12 @@ module InstantSlackBot #:nodoc:
     def initialize(
       action: nil,
       conditions: nil,
-      options: nil,
-      logic: :or
+      options: {}
     )
       self.action = action
       self.conditions = conditions
-      @id = random_sha1
-      @options = DEFAULT_OPTIONS.merge(options)
-      @logic = logic
+      @id = OpenSSL::HMAC.new(rand.to_s, 'sha1').to_s
+      @options = DEFAULT_BOT_OPTIONS.merge(options)
     end
 
     # Used to assign actions to this Bot instance
@@ -106,43 +75,35 @@ module InstantSlackBot #:nodoc:
     # @param :channel [String] Channel name where the message originated
     # @param :text [String] Text of the message
     # @param :user [String] Username who wrote the message
-    def check_conditions(args)
+    def check_conditions(arg)
       run_action = false
-      case @logic
+      case options[:condition_logic]
       when :or
         @conditions.each do |condition|
-          if cond.class.name == 'Proc'
-            run_action ||= check_condition args.merge({
-              condition: condition
-            })[:message]
+          if condition.class.name == 'Proc'
+            run_action ||= check_condition arg.merge({ condition: condition })[:message]
           else
-            run_action ||= check_condition args.merge({
-              condition: condition
-            })
+            run_action ||= check_condition arg.merge({ condition: condition })
           end
         end
       when :and
         run_action = true
         @conditions.each do |condition|
-          if cond.class.name == 'Proc'
-            run_action &&= check_condition args.merge({
-              condition: condition
-            })[:message]
+          if condition.class.name == 'Proc'
+            run_action &&= check_condition arg.merge({ condition: condition })[:message]
           else
-            run_action &&= check_condition args.merge({
-              condition: condition
-            })
+            run_action &&= check_condition arg.merge({ condition: condition })
           end
         end
       end
       run_action
     end
 
-    def run_action(args)
+    def run_action(arg)
       if @action.class.name == 'Proc'
-        @action.call(args[:message])
+        @action.call(arg[:message])
       elsif @action.class.name == 'Method'
-        @action.call(args)
+        @action.call(arg)
       else
         raise StandardError,
           "InstantSlackBot::Bot#run_actions invalid class type #{msg}"
@@ -158,6 +119,8 @@ module InstantSlackBot #:nodoc:
     # @param :user [String] (see #check)
     # @param :message [SlackMessage] Slack Message hash
     def check_condition(condition: nil, message: nil)
+pp condition
+pp message
       case condition.class.name
       when 'String'
         true if /\b#{condition}\b/i.match(message['text'])
@@ -169,10 +132,6 @@ module InstantSlackBot #:nodoc:
         raise "Condition (#{condition}) is an invalid class " \
           "(#{condition.class.name})"
       end
-    end
-
-    def random_sha1
-      OpenSSL::HMAC.new(rand.to_s, 'sha1').to_s
     end
   end
 end
