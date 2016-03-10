@@ -16,16 +16,17 @@ module InstantSlackBot
       token: nil
     )
       @bots = {}
-      @channel_criteria = channels
+      @channel_criteria = channels || {}
       @options = DEFAULT_MASTER_OPTIONS.merge(options)
       @post_options = DEFAULT_MASTER_POST_OPTIONS.merge(post_options)
       @token = token
 
-      @slack = nil
       @channels = {}
+      @get_queue = Queue.new
+      @post_queue = Queue.new
+      @slack = nil
       @threads = {}
       @users = {}
-      @receive_message_queue = []
 
       connect_to_slack_webrpc
       @slack_connection = @slack.auth.test.body
@@ -50,8 +51,7 @@ module InstantSlackBot
         token: @token,
         debug: options[:debug]
       )
-      add_to_queue = proc { |message| @receive_message_queue << message }
-      @slack_rtm.bind(event_type: :message, event_handler: add_to_queue)
+      @slack_rtm.bind(event_type: :message, event_handler: proc { |msg| @get_queue << msg })
     rescue StandardError => msg
       abort "Error Initializing Slack RTM: #{msg}"
     end
@@ -62,7 +62,7 @@ module InstantSlackBot
     end
 
     def <<(arg)
-      case arg.class.name
+      case arg.class.superclass.name || arg.class.name
       when 'String', 'Regexp', 'Proc'
         add_channel arg
       when 'Array'
@@ -70,7 +70,7 @@ module InstantSlackBot
       when 'InstantSlackBot::Bot', 'Hash'
         add_bot arg
       else
-        raise "Master invalid class #{arg.class.name}"
+        raise "Master invalid class (#{arg.class.name})"
       end
     end
 
@@ -102,15 +102,13 @@ module InstantSlackBot
     # Event loop - does not return (yet).
     def run
       loop do
-        if message = @receive_message_queue.shift then
-          # First we process potential bot events
+        if thread_count < options[:max_threads] && message = @get_queue.shift
           update_users if MESSAGE_TYPES_UPDATE_USERS.include? message['type']
           update_channels if MESSAGE_TYPES_UPDATE_CHANNELS.include? message['type']
-          process_message(message: message) || @receive_message_queue.unshift(message)
-        else
-          sleep THREAD_THROTTLE_DELAY
-        end
-        compact_bot_threads
+          process_message(message: message) unless filter_message(message: message)
+	end
+        compact_bot_threads!
+        sleep THREAD_THROTTLE_DELAY # some math here would be better
       end
     end
 
@@ -122,7 +120,7 @@ module InstantSlackBot
     end
 
     def add_bot(bot)
-      case bot.class.name
+      case bot.class.superclass.name || bot.class.name
       when 'InstantSlackBot::Bot'
         @bots[bot.id] = bot
         @threads[bot.id] = []
@@ -133,7 +131,7 @@ module InstantSlackBot
       end
     end
 
-    def compact_bot_threads
+    def compact_bot_threads!
       @threads.each_value do |t_array|
         t_array.each_index do |idx|
           if [nil, false].include? t_array[idx].status
@@ -231,26 +229,32 @@ module InstantSlackBot
     end
 
     def set_user_typing(bot: nil, message: nil)
+      # do we need as_user ?
       @slack_rtm.send({ 'channel' => message['channel'], 'type' => 'typing', 'as_user' => 'true' })
     end
 
-    def process_message(message: nil)
+    def filter_message(message: nil)
       return true if message.key?('subtype') && message['subtype'] == 'bot_message'
       return true if message['type'] != 'message'
-      return false if thread_count >= options[:max_threads]
+      false
+    end
+
+    def process_message(message: nil)
       @bots.each do |bot_id, bot| 
         @threads[bot_id] << Thread.new {
           message_plussed = message_plus(message: message)
-          if bot.check_conditions(message: message_plussed)
-
-            # TODO: submit an is_typing method to API
-            # typing can be done every 3 seconds via a thread 
-            @slack.users.setActive({ })
-            @slack.users.setPresence({ 'presence' => 'auto' })
-
+puts "bot.c"
+pp bot.conditions(master: self, message: message_plussed)
+          if bot.conditions(master: self, message: message_plussed)
+#
+# TODO: submit an is_typing method to API
+# typing can be done every 3 seconds via a thread 
+@slack.users.setActive({ })
+@slack.users.setPresence({ 'presence' => 'auto' })
+#
             post_message(
               bot: bot, 
-              response: bot.run_action(message: message_plussed)
+              response: bot.action(master: self, message: message_plussed)
             )
           end
         }
@@ -258,9 +262,9 @@ module InstantSlackBot
       true
     end
 
-
     def thread_count
-      @threads.values.map { |thread_a| thread_a.length }.reduce(:+)
+      @threads.values.map { |thread_a| thread_a.length }.reduce(:+) || 0
     end
+
   end
 end

@@ -9,8 +9,8 @@ module InstantSlackBot #:nodoc:
   # Bot class is used to define a set of conditions, which, once met, result in
   #   an action.
   class Bot
-    attr_accessor :action, :logic, :debug
-    attr_reader :conditions, :id, :options
+    attr_accessor :action, :conditions, :channels, :options
+    attr_reader :id
 
     # Instantiates a Bot object
     # @note `:action` and `:conditions` are both required, but can be populated
@@ -24,12 +24,27 @@ module InstantSlackBot #:nodoc:
     def initialize(
       action: nil,
       conditions: nil,
+      channels: nil,
       options: {}
     )
       self.action = action
       self.conditions = conditions
       @id = OpenSSL::HMAC.new(rand.to_s, 'sha1').to_s
       @options = DEFAULT_BOT_OPTIONS.merge(options)
+    end
+
+    # Method used to run the bots action. Override this when using
+    # a Class based bot.
+    #
+    def action(arg)
+      if @action.class.name == 'Proc'
+        @action.call(arg[:message])
+      elsif @action.class.name == 'Method'
+        @action.call(arg)
+      else
+        raise StandardError,
+          "InstantSlackBot::Bot#action passed invalid class type #{msg}"
+      end
     end
 
     # Used to assign actions to this Bot instance
@@ -44,38 +59,12 @@ module InstantSlackBot #:nodoc:
       end
     end
 
-    # Used to assign conditions to this Bot instance
-    # @param arg [String, Regexp] Matches messages in Slack channels
-    # @param arg [Proc] Proc is run, the evaluation is printed
-    # @param arg [Array] One or more of Strings, Regexps, Procs, which are
-    #   evaluated using boolean AND or OR logic, based on the value of
-    #   `#logic`
-    def conditions=(arg)
-      @conditions = []
-      case arg.class.name
-      when 'Array'
-        @conditions += arg
-      when 'String', 'Regexp', 'Proc', 'Method'
-        @conditions << arg
-      else
-        raise "Condition (#{arg}) is an invalid class (#{arg.class.name})"
-      end
-    end
-
-    # Adds a condition or conditions to this Bot instance
-    # @param arg [String, Regexp] (see #conditions=)
-    # @param arg [Proc] (see #conditions=)
-    # @param arg [Array] (see #conditions=)
-    def <<(arg)
-      @conditions << arg
-    end
-
     # Used to evaluate the Bots conditions, and run the action if needed.
     #   Normally this is only called by the Master.
     # @param :channel [String] Channel name where the message originated
     # @param :text [String] Text of the message
     # @param :user [String] Username who wrote the message
-    def check_conditions(arg)
+    def conditions(arg)
       run_action = false
       case options[:condition_logic]
       when :or
@@ -99,15 +88,31 @@ module InstantSlackBot #:nodoc:
       run_action
     end
 
-    def run_action(arg)
-      if @action.class.name == 'Proc'
-        @action.call(arg[:message])
-      elsif @action.class.name == 'Method'
-        @action.call(arg)
+    # Used to assign conditions to this Bot instance
+    # @param arg [String, Regexp] Matches messages in Slack channels
+    # @param arg [Proc] Proc is run, the evaluation is printed
+    # @param arg [Array] One or more of Strings, Regexps, Procs, which are
+    #   evaluated using boolean AND or OR logic, based on the value of
+    #   `#logic`
+    def conditions=(arg)
+      @conditions = []
+      case arg.class.name
+      when 'Array'
+        @conditions += arg
+      when 'String', 'Regexp', 'Proc', 'Method'
+        @conditions << arg
+      when 'NilClass'
       else
-        raise StandardError,
-          "InstantSlackBot::Bot#run_actions invalid class type #{msg}"
+        raise "Condition (#{arg}) is an invalid class (#{arg.class.name})"
       end
+    end
+
+    # Adds a condition or conditions to this Bot instance
+    # @param arg [String, Regexp] (see #conditions=)
+    # @param arg [Proc] (see #conditions=)
+    # @param arg [Array] (see #conditions=)
+    def <<(arg)
+      @conditions << arg
     end
 
     private
@@ -119,8 +124,8 @@ module InstantSlackBot #:nodoc:
     # @param :user [String] (see #check)
     # @param :message [SlackMessage] Slack Message hash
     def check_condition(condition: nil, message: nil)
-pp condition
-pp message
+#pp condition
+#pp message
       case condition.class.name
       when 'String'
         true if /\b#{condition}\b/i.match(message['text'])

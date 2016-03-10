@@ -1,75 +1,39 @@
 #!/usr/bin/env ruby
 #
-# InstantSlackBot based weather bot.
-#
+# InstantSlackBot Class based example
 #   http://github.com/robzr/instant-slack-bot
 #
-#     -- @robzr 3/2016
-#
-# To Install, first:
-#
-# sudo gem install slack-api weather_underground
-
-TRIGGER_PHRASE = 'class'
-BOT_NAME = 'ClassBot'
-
 require 'pp'
-require 'optparse'
 require_relative '../instant_slack_bot'
 
 instabot_options = { 
-  name: BOT_NAME,
-  post_options: { icon_emoji: ':partly_sunny:' },
-  debug: false
-}
+  token: ENV['SLACK_TOKEN'],
+  options: {
+    debug: true,
+    post_options: {
+      icon_emoji: ':partly_sunny:'
+} } }
 
-channels = []
-options = {}
-
-OptionParser.new do |opts|
-  opts.banner = "Usage: #{$PROGRAM_NAME.sub(%r{.*/}, '')} " \
-    "-s token [-c channel|-r regex [-c ...|-r ...]]\n\n"
-
-  opts.on('-c', '--channel', '=MANDATORY', 'Provide a channel name to monitor')                   { |arg| channels << arg }
-  opts.on('-h', '--help', 'Display this help.')                                                   { abort "#{opts.help}#{CMDLINE_HELP}" }
-  opts.on('-q', '--quiet', 'Suppress output.')                                                    {       options[:quiet] = true }
-  opts.on('-r', '--channel-regex', '=MANDATORY', 'Provide a regex for channels to monitor')       { |arg| channels << %r{arg} }
-  opts.on('-s', '--slack-token', '=MANDATORY', 'Specify the Slack API token')                     { |arg| instabot_options[:token] = arg }
-end.parse!
-
-abort 'Missing Slack token - use -h for help' unless instabot_options[:token]
-
-# Update to use environment variable for token, and get rid of options
-
-module MyModule
-
-  class Conditions
-    def test_condition(message: message)
-      return true if message['text'] =~ /^test/
-      return true if message['username'] =~ /^r/
-      return true if message['channel'] =~ /^bot_heaven/
-      false
-    end
+class MyBot < InstantSlackBot::Bot
+  def conditions(arg)
+    return true if message['channel'] =~ /^bot_heaven/
+    return true if message['text'] =~ /^test/
+    return true if message['username'] =~ /^r/
+    true
   end
 
-  class Action
-    def respond_to_user(message: message)
-      "*I am responding* _to_ @#{message['username']} in channel ##{message['channelname']}\n" \
-    end
+  def action(arg)
+puts "MyBot#action"
+pp arg
+    "*I am responding* _to_ @#{message['username']} in channel ##{message['channelname']}\n"
   end
-
 end
 
-condition = MyModule::Conditions.new
-action = MyModule::Action.new
+#condition = MyModule::Conditions.new
+#action = MyModule::Action.new
 
-InstantSlackBot::Master.new(instabot_options.merge({ 
-  channels: channels, 
-  debug: true,
-  bots: InstantSlackBot::Bot.new(
-    conditions: condition.method(:test_condition),
-    action: action.method(:respond_to_user)
-  )
-})).run
-
-
+master = InstantSlackBot::Master.new(instabot_options)
+my_bot = MyBot.new
+pp my_bot.class.superclass
+master << my_bot
+master.run
