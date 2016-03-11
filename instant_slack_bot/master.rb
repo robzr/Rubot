@@ -24,6 +24,7 @@ module InstantSlackBot
       @channels = {}
       @get_queue = Queue.new
       @post_queue = Queue.new
+      @post_queue_thread = nil
       @slack = nil
       @threads = {}
       @users = {}
@@ -34,8 +35,8 @@ module InstantSlackBot
 
       update_channels
       update_users
+      launch_post_queue_thread
       add_bot bots
-
       connect_to_slack_rtm
     end
 
@@ -62,7 +63,7 @@ module InstantSlackBot
     end
 
     def <<(arg)
-      case arg.class.superclass.name || arg.class.name
+      case arg.class.name
       when 'String', 'Regexp', 'Proc'
         add_channel arg
       when 'Array'
@@ -70,7 +71,11 @@ module InstantSlackBot
       when 'InstantSlackBot::Bot', 'Hash'
         add_bot arg
       else
-        raise "Master invalid class (#{arg.class.name})"
+        if arg.class.superclass.name == 'InstantSlackBot::Bot'
+          add_bot arg
+        else
+          raise "Master#<< invalid class (#{arg.class.name})"
+        end
       end
     end
 
@@ -102,11 +107,12 @@ module InstantSlackBot
     # Event loop - does not return (yet).
     def run
       loop do
-        if thread_count < options[:max_threads] && message = @get_queue.shift
+        if thread_count < options[:max_threads] && @get_queue.length > 0
+          message = @get_queue.shift(true)
           update_users if MESSAGE_TYPES_UPDATE_USERS.include? message['type']
           update_channels if MESSAGE_TYPES_UPDATE_CHANNELS.include? message['type']
           process_message(message: message) unless filter_message(message: message)
-	end
+        end
         compact_bot_threads!
         sleep THREAD_THROTTLE_DELAY # some math here would be better
       end
@@ -120,7 +126,7 @@ module InstantSlackBot
     end
 
     def add_bot(bot)
-      case bot.class.superclass.name || bot.class.name
+      case bot.class.name
       when 'InstantSlackBot::Bot'
         @bots[bot.id] = bot
         @threads[bot.id] = []
@@ -128,17 +134,34 @@ module InstantSlackBot
         add_bot InstantSlackBot::Bot.new(bot)
       when 'Array'
         bot.each { |bot| add_bot bot }
+      else
+        if bot.class.superclass.name == 'InstantSlackBot::Bot'
+          @bots[bot.id] = bot
+          @threads[bot.id] = []
+        end
       end
     end
 
     def compact_bot_threads!
-      @threads.each_value do |t_array|
-        t_array.each_index do |idx|
-          if [nil, false].include? t_array[idx].status
-            t_array[idx].join
-            t_array[idx] = nil
+      @threads.each_value do |thread_array|
+        thread_array.each do |thread|
+          unless thread.status
+            thread.join
+            thread = nil
           end
-          t_array.compact!
+        end
+        thread_array.compact!
+      end
+    end
+
+    def launch_post_queue_thread
+      @post_queue_thread = Thread.new do
+        loop do
+          begin
+            @slack.chat.postMessage @post_queue.shift
+          rescue StandardError => msg
+            puts "Master#launch_post_queue_thread error posting message: #{msg}"
+          end
         end
       end
     end
@@ -206,58 +229,50 @@ module InstantSlackBot
       abort "Error: could not update users (#{msg})"
     end
 
-    def post_message(bot: nil, response: nil)
-      return unless response
-      response = { text: response.to_s } if response.class.name != 'Hash'
-      if bot.options[:use_api] == :rtm
-        @slack_rtm.send(
-          @post_options.merge({ channel: message['channel'] })
-          .merge(bot.options[:post_options])
-          .merge(bot_response)
-          .merge({ 'type' => 'message' })
-        )
-      elsif bot.options[:use_api] == :web_rpc
-        @slack.chat.postMessage(
-          @post_options.merge({ channel: message['channel'] })
-          .merge(bot.options[:post_options])
-          .merge(bot_response)
-          .merge({ 'type' => 'message' })
-        )
+    def post_message(message: nil, use_api: :webrpc)
+      if use_api == :rtm
+        puts "Master#post_message :rtm => #{message}" if options[:debug]
+        @slack_rtm.send message
+      else
+        puts "Master#post_message :use_api => #{message}" if options[:debug]
+        @post_queue << message
       end
     rescue StandardError => msg
       abort "Master#post_message error: #{msg}"
     end
 
     def set_user_typing(bot: nil, message: nil)
-      # do we need as_user ?
-      @slack_rtm.send({ 'channel' => message['channel'], 'type' => 'typing', 'as_user' => 'true' })
+      # typing can be done every 3 seconds via a thread 
+      message = bot.options[:post_options].merge({
+        'channel' => message['channel'],
+        'type' => 'typing'
+      })
+      @slack_rtm.send message
     end
 
     def filter_message(message: nil)
-      return true if message.key?('subtype') && message['subtype'] == 'bot_message'
       return true if message['type'] != 'message'
+      return true if message.key?('subtype') && message['subtype'] == 'bot_message'
       false
     end
 
+    # This should be migrated to use a Queue and a message sending thread
     def process_message(message: nil)
       @bots.each do |bot_id, bot| 
-        @threads[bot_id] << Thread.new {
+        @threads[bot_id] << Thread.new do
           message_plussed = message_plus(message: message)
-puts "bot.c"
-pp bot.conditions(master: self, message: message_plussed)
           if bot.conditions(master: self, message: message_plussed)
-#
-# TODO: submit an is_typing method to API
-# typing can be done every 3 seconds via a thread 
-@slack.users.setActive({ })
-@slack.users.setPresence({ 'presence' => 'auto' })
-#
+            set_user_typing(bot: bot, message: message) if bot.options[:use_api] == :rtm
+            response = @post_options.merge(bot.options[:post_options])
+              .merge!({ 'type' => 'message', 'channel' => message['channel'] })
+            action = bot.action(master: self, message: message_plussed)
+            action = { text: action.to_s } if action.class.name != 'Hash'
             post_message(
-              bot: bot, 
-              response: bot.action(master: self, message: message_plussed)
+              message: response.merge(action),
+              use_api: bot.options[:use_api]
             )
           end
-        }
+        end
       end
       true
     end

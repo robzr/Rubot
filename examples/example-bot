@@ -58,18 +58,18 @@ instabot << InstantSlackBot::Bot.new(
 # Proc based conditions and action
 conditions = [
   proc do |message|
-    message['channelname'] == 'general' && 
-      arg[:text].length < 15 &&
-      arg[:text] =~ /^instabot short/i
+    message['channelname'] != 'general' && 
+      message['text'].length < 15 &&
+      message['text'] =~ /^instabot short/i
   end,
   proc do |message|
-    message['channelname'] == 'general' &&
+    message['channelname'] != 'general' &&
       message['text'].length > 15 &&
       message['text'] =~ /^instabot long/i
   end
 ]
-action = proc do |arg|
-  "*Matched _Text* from_ ~#{arg[:user]}~ in ##{arg[:channel]}\n>>>#{arg[:text]}"
+action = proc do |message|
+  "*Matched _Text* from_ ~#{message['username']}~ in ##{message['channelname']}\n>>>#{message['text']}"
 end
 
 instabot << InstantSlackBot::Bot.new(conditions: conditions, action: action)

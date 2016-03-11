@@ -110,9 +110,18 @@ get_weather = proc do |message|
   end
 end
 
+check_bot = proc do |message|
+  if message['text'] =~ %r{^#{TRIGGER_PHRASE}\s+\w+}
+    true
+  else
+    false
+  end
+end
+
 instabot << InstantSlackBot::Bot.new(
-  conditions: %r{^#{TRIGGER_PHRASE}\s+\w+}, 
+  conditions: check_bot,
   action: get_weather
 )
+
 
 instabot.run

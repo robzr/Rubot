@@ -37,10 +37,8 @@ module InstantSlackBot #:nodoc:
     # a Class based bot.
     #
     def action(arg)
-      if @action.class.name == 'Proc'
+      if ['Proc', 'Method'].include?@action.class.name
         @action.call(arg[:message])
-      elsif @action.class.name == 'Method'
-        @action.call(arg)
       else
         raise StandardError,
           "InstantSlackBot::Bot#action passed invalid class type #{msg}"
@@ -69,20 +67,12 @@ module InstantSlackBot #:nodoc:
       case options[:condition_logic]
       when :or
         @conditions.each do |condition|
-          if condition.class.name == 'Proc'
-            run_action ||= check_condition arg.merge({ condition: condition })[:message]
-          else
-            run_action ||= check_condition arg.merge({ condition: condition })
-          end
+          run_action ||= check_condition(arg.merge({ condition: condition }))
         end
       when :and
         run_action = true
         @conditions.each do |condition|
-          if condition.class.name == 'Proc'
-            run_action &&= check_condition arg.merge({ condition: condition })[:message]
-          else
-            run_action &&= check_condition arg.merge({ condition: condition })
-          end
+          run_action &&= check_condition(arg.merge({ condition: condition }))
         end
       end
       run_action
@@ -123,16 +113,16 @@ module InstantSlackBot #:nodoc:
     # @param :text [String] (see #check)
     # @param :user [String] (see #check)
     # @param :message [SlackMessage] Slack Message hash
-    def check_condition(condition: nil, message: nil)
-#pp condition
-#pp message
+    def check_condition(arg)
+      condition = arg[:condition]
+      arg.delete(:condition)
       case condition.class.name
       when 'String'
-        true if /\b#{condition}\b/i.match(message['text'])
+        true if /\b#{condition}\b/i.match(arg[:message]['text'])
       when 'Regexp'
-        true if condition.match(message['text'])
+        true if condition.match(arg[:message]['text'])
       when 'Proc', 'Method'
-        true if condition.call(message: message)
+        true if condition.call(arg[:message])
       else
         raise "Condition (#{condition}) is an invalid class " \
           "(#{condition.class.name})"

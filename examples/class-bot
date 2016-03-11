@@ -11,20 +11,21 @@ instabot_options = {
   options: {
     debug: true,
     post_options: {
-      icon_emoji: ':partly_sunny:'
+      'user_name' => 'shenanigans',
+      'icon_emoji' => ':partly_sunny:'
 } } }
 
 class MyBot < InstantSlackBot::Bot
   def conditions(arg)
+    message = arg[:message]
     return true if message['channel'] =~ /^bot_heaven/
-    return true if message['text'] =~ /^test/
-    return true if message['username'] =~ /^r/
-    true
+    return true if message['text'] =~ /^test /
+    return true if message['username'] =~ /^rex/
+    false
   end
 
   def action(arg)
-puts "MyBot#action"
-pp arg
+    message = arg[:message]
     "*I am responding* _to_ @#{message['username']} in channel ##{message['channelname']}\n"
   end
 end
@@ -33,7 +34,9 @@ end
 #action = MyModule::Action.new
 
 master = InstantSlackBot::Master.new(instabot_options)
-my_bot = MyBot.new
-pp my_bot.class.superclass
+my_bot = MyBot.new({ options: { use_api: :rtm } })
+
+#pp my_bot.class.superclass
+
 master << my_bot
 master.run
