@@ -35,11 +35,12 @@ By passing Procs or Methods for conditions and actions, more [sophisticated bots
 * Multiple conditions can matched with boolean **and** or **or** logic (**or** is the default).
 * An **action** forms the response when the conditions are met. An action can be as simple as a text string, but 
 will usually be a Proc or Method.
-* When using a Procs and Methods for conditions or actions, an optional hash argument will pass the received message and details
-* For the most flexibility, inherit the Bot class and override the #conditions and #action methods (see [class-example](https://github.com/robzr/instant-slack-bot/blob/master/examples/class-bot))
+* When using Procs or Methods for conditions or actions, an hash argument will pass the received message and extra details.
+* For the most flexibility, inherit the Bot class and override the #conditions and #action methods (see [class-example](https://github.com/robzr/instant-slack-bot/blob/master/examples/class-bot)).
 * Finally, register the Bots with the Master and call **Master#run** to begin operation.
 
 ####TODO
+* Make inheritence of Master#options consistent for all Bot#options (ex: :use_api)
 * Add ResponseCache class - based on identical input, cache with time/hit count/size expire
 * Add AutoLoader class - monitors directory, adds & removes methods based on files
 * Update API documentation to RDoc standards
