@@ -8,6 +8,7 @@ require 'net/http'
 require 'socket'
 require 'websocket/driver'
 require 'logger'
+require 'thread'
 include IO::WaitReadable
 
 module InstantSlackBot
@@ -34,12 +35,12 @@ module InstantSlackBot
       @select_timeout = select_timeout
       @token = token
 
-
       # one of [:closed, :connecting, :initializing, :open]
       @connection_status = :closed
       @event_handlers = {}
-      @events_queue = []
-      @thread = nil
+      @events_queue = Queue.new;
+      @connection_thread = nil
+      @events_thread = nil
 
       @logger = Logger.new(STDOUT) if @debug
 
@@ -62,9 +63,9 @@ module InstantSlackBot
 
     def close
       @connection_status = :closed
-      return unless @thread
-      @thread.kill
-      @thread = nil 
+      return unless @connection_thread
+      @connection_thread.kill
+      @connection_thread = nil 
       @driver.close 
     end
 
@@ -76,13 +77,8 @@ module InstantSlackBot
     alias_method :<<, :send
 
     def start
-      @thread = Thread.new do
-        connect_to_slack
-        loop do
-          check_ws if @connection_status != :closed
-        end
-      end
-      @thread.abort_on_exception = true
+      launch_connection_thread
+      launch_events_thread
     end
 
     private
@@ -92,7 +88,6 @@ module InstantSlackBot
         data = @socket.readpartial 4096
         @driver.parse data unless data.nil? || data.empty?
       end
-      handle_events_queue
       tdiff = Time.new.to_i - @last_activity
       if Time.new.to_i - @last_activity > @ping_threshold
         @driver.ping
@@ -112,13 +107,6 @@ module InstantSlackBot
       @driver.start
     end
 
-    def handle_events_queue
-      while event = @events_queue.shift
-        send_log "WebSocket::Driver send #{event}"
-        @driver.text event
-      end
-    end
-
     def get_initial_url
       req = Net::HTTP.post_form URI(RTM_API_URL), token: @token
       body = JSON.parse req.body
@@ -128,10 +116,39 @@ module InstantSlackBot
         raise ArgumentError.new "Slack error: #{body['error']}"
       end
     end
+
+    def launch_connection_thread
+      @connection_thread = Thread.new do
+        connect_to_slack
+        loop do
+          if @connection_status == :closed
+            sleep @select_timeout
+          else
+            check_ws 
+          end
+        end
+      end
+      @connection_thread.abort_on_exception = true
+    end
+
+    def launch_events_thread
+      @events_thread = Thread.new do
+        loop do
+          event = @events_queue.shift
+          send_log "WebSocket::Driver send #{event}"
+          @driver.text event
+        end
+      end
+      @events_thread.abort_on_exception = true
+    end
     
     def message_id
-      @message_id = 0 unless defined? @message_id
-      @message_id += 1
+      @message_id_mutex = Mutex.new unless defined? @message_id_mutex
+      @message_id_mutex.synchronize {
+        @message_id = 0 unless defined? @message_id
+        @message_id += 1
+      }
+      @message_id
     end       
 
     def register_driver_events 

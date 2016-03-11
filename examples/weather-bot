@@ -92,6 +92,11 @@ get_weather = proc do |message|
         puts 'wunderground returned ambiguous results.' unless options[:quiet]
         msg = '>_*The location you tried is ambiguious, try something more specific.*_'
       else
+#        msg = "*" \
+#          "Current conditions - #{forecast['current_observation']['weather']}, " \
+#          "#{forecast['current_observation']['temp_f']}°F with " \
+#          "#{forecast['current_observation']['relative_humidity']} Humidity in " \
+#          "_#{forecast['current_observation']['display_location']['full']}._*\n>>>"
         msg = "*<#{forecast['current_observation']['forecast_url']}|" \
           "Current conditions - #{forecast['current_observation']['weather']}, " \
           "#{forecast['current_observation']['temp_f']}°F with " \
@@ -119,6 +124,7 @@ check_bot = proc do |message|
 end
 
 instabot << InstantSlackBot::Bot.new(
+  options: { use_api: :webrpc },
   conditions: check_bot,
   action: get_weather
 )

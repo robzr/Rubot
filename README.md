@@ -1,15 +1,15 @@
 # InstantSlackBot
 Simple, extensible, multithreaded Slack Bot Ruby API 
 - Lightweight and largely transparent layer on top of Slack APIs
-- Simple, intuitive and familiar Ruby API
+- Simple, intuitive and familiar Ruby interface
 - Fully multithreaded for efficient and fast response
-- Supports multiple bots per instance
-- Each Bot is composed of one or more conditions and one action
-- Conditions can be Strings, Regexps, Procs or Methods
-- Actions are based on Strings, Procs or Methods
-- Inherit the Bot class for the most flexible Bot creation
+- Multiple bots can share a single API connection object
+- Each bot is composed of one or more conditions and one action
+- Conditions can be Strings, Regexps, Procs/Lambdas or Methods
+- Actions are based on Strings, Procs/Lambdas or Methods
+- Alternately, extend the Bot class for the most flexibility
 - Uses the Slack Web RPC API to post and transfer metadata
-- Uses the Slack RTM API to receive messages in realtime
+- Uses the Slack RTM API to receive messages in real-time
 - Optionally use the Slack RTM API to send messages with low latency
 
 
@@ -27,24 +27,32 @@ By passing Procs or Methods for conditions and actions, more [sophisticated bots
   alt="Example output from WeatherBot" height=542 width=815>
 
 ####How does it work?
-* Create a **InstantSlackBot::Master** instance to communicate with the Slack API - you can 
+* Create a **InstantSlackBot::Master** instance to communicate with the Slack API - 
 [get an API token here](https://api.slack.com/docs/oauth-test-tokens).
 * Create at least one **InstantSlackBot::Bot**. Each Bot needs at least one condition and an action.
 * **conditions** determine when the Bot responds and can be as simple as a text string or 
   regular expression which is matched against each message, or Procs/Methods for more sophisticated logic.
 * Multiple conditions can matched with boolean **and** or **or** logic (**or** is the default).
 * An **action** forms the response when the conditions are met. An action can be as simple as a text string, but 
-will usually be a Proc or Method.
-* When using Procs or Methods for conditions or actions, an hash argument will pass the received message and extra details.
+will usually be a Proc/Lambda or Method.
+* When using Procs/Lambdas or Methods for conditions or actions, a hash argument will pass the received message & more
+* Full access to the Slack API is available to both actions and conditions
 * For the most flexibility, inherit the Bot class and override the #conditions and #action methods (see [class-example](https://github.com/robzr/instant-slack-bot/blob/master/examples/class-bot)).
 * Finally, register the Bots with the Master and call **Master#run** to begin operation.
 
 ####TODO
+* Standardize/simply access to Slack API for Bots, either with Master passing self or a reference to self (how?), or simply by referencing to the master object (figure out pros & cons of each)
 * Make inheritence of Master#options consistent for all Bot#options (ex: :use_api)
-* Add ResponseCache class - based on identical input, cache with time/hit count/size expire
+* Refactor
+* Add ResponseCache class - based on identical input, cache with time/hit count/size expire logic
+* Refactor again
 * Add AutoLoader class - monitors directory, adds & removes methods based on files
+* Refactor again
 * Update API documentation to RDoc standards
+* Refactor again
 * Bundle and distribute on rubygems.org
+* Refactor again
+* Refactor more
 
 ###License & Credits
 * The InstantSlackBot::SlackRTM class is based on [Rémi Delhaye's slack-rtm-api gem](https://github.com/rdlh/slack-rtm-api)
