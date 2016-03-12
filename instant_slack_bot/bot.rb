@@ -26,6 +26,7 @@ module InstantSlackBot #:nodoc:
       conditions: nil,
       channels: nil,
       options: {}
+      post_options: {}
     )
       self.action = action
       self.conditions = conditions

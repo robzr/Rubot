@@ -10,10 +10,12 @@ instabot_options = {
   token: ENV['SLACK_TOKEN'],
   options: {
     debug: true,
-    post_options: {
-      'user_name' => 'shenanigans',
-      'icon_emoji' => ':partly_sunny:'
-} } }
+  }
+  post_options: {
+    'username' => 'shenanigans',
+    'icon_emoji' => ':partly_sunny:'
+  }
+}
 
 class MyBot < InstantSlackBot::Bot
   def conditions(arg)

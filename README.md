@@ -41,18 +41,14 @@ will usually be a Proc/Lambda or Method.
 * Finally, register the Bots with the Master and call **Master#run** to begin operation.
 
 ####TODO
-* Standardize/simply access to Slack API for Bots, either with Master passing self or a reference to self (how?), or simply by referencing to the master object (figure out pros & cons of each)
 * Make inheritence of Master#options consistent for all Bot#options (ex: :use_api)
-* Refactor
+* Standardize/simply access to Slack API for Bots, either with Master passing self or a reference to self (how?), or simply by referencing to the master object (figure out pros & cons of each)
+* Abstract away the dual-API access into an underlying class that can be used by other programs
 * Add ResponseCache class - based on identical input, cache with time/hit count/size expire logic
-* Refactor again
 * Add AutoLoader class - monitors directory, adds & removes methods based on files
-* Refactor again
 * Update API documentation to RDoc standards
-* Refactor again
 * Bundle and distribute on rubygems.org
-* Refactor again
-* Refactor more
+* Refactor, refactor, refactor...
 
 ###License & Credits
 * The InstantSlackBot::SlackRTM class is based on [Rémi Delhaye's slack-rtm-api gem](https://github.com/rdlh/slack-rtm-api)
