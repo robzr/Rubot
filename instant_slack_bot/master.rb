@@ -6,7 +6,8 @@ module InstantSlackBot
   require 'thread'
 
   class Master
-    attr_accessor :bots, :options, :post_options
+    attr_accessor :bots, :options, :post_options, :slack
+    attr_reader :slack_connection # may be unnecessary
 
     def initialize(
       bots: nil,
@@ -26,12 +27,13 @@ module InstantSlackBot
       @post_queue = Queue.new
       @post_queue_thread = nil
       @slack = nil
+      @slack_rtm = nil
       @threads = {}
       @users = {}
 
       connect_to_slack_webrpc
       @slack_connection = @slack.auth.test.body
-      raise "Error authenticating to Slack Web RPC" unless @slack_connection['ok']
+      raise "Error authenticating to Slack WebRPC" unless @slack_connection['ok']
 
       update_channels
       update_users
@@ -44,22 +46,18 @@ module InstantSlackBot
       @slack = Slack::RPC::Client.new(@token)
       auth_test = @slack.auth.test
     rescue StandardError => msg
-      abort "Error Initializing Slack WebRPC: #{msg}"
+      raise "Error Initializing Slack WebRPC: #{msg}"
     end
 
     def connect_to_slack_rtm
       @slack_rtm = InstantSlackBot::SlackRTM.new(
         token: @token,
-        debug: options[:debug]
-      )
+        debug: true)
+#        debug: options[:debug]
+#      )
       @slack_rtm.bind(event_type: :message, event_handler: proc { |msg| @get_queue << msg })
-    rescue StandardError => msg
-      abort "Error Initializing Slack RTM: #{msg}"
-    end
-
-    def slack
-      # TODO: merge RTM connection info
-      @slack_connection.merge({ })
+#    rescue StandardError => msg
+#      raise "Error Initializing Slack RTM: #{msg}"
     end
 
     def <<(arg)
@@ -130,6 +128,7 @@ module InstantSlackBot
       when 'InstantSlackBot::Bot'
         @bots[bot.id] = bot
         @threads[bot.id] = []
+        bot.master = self
       when 'Hash'
         add_bot InstantSlackBot::Bot.new(bot)
       when 'Array'
@@ -138,6 +137,7 @@ module InstantSlackBot
         if bot.class.superclass.name == 'InstantSlackBot::Bot'
           @bots[bot.id] = bot
           @threads[bot.id] = []
+          bot.master = self
         end
       end
     end

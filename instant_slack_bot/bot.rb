@@ -1,5 +1,5 @@
 # InstantSlackBot::Bot class - defines a single Bot instance
-
+ 
 module InstantSlackBot #:nodoc:
   require 'pp'
   require 'slack'
@@ -9,7 +9,7 @@ module InstantSlackBot #:nodoc:
   # Bot class is used to define a set of conditions, which, once met, result in
   #   an action.
   class Bot
-    attr_accessor :action, :conditions, :channels, :options
+    attr_accessor :action, :conditions, :channels, :master, :options
     attr_reader :id
 
     # Instantiates a Bot object
@@ -25,13 +25,14 @@ module InstantSlackBot #:nodoc:
       action: nil,
       conditions: nil,
       channels: nil,
-      options: {}
+      options: {},
       post_options: {}
     )
       self.action = action
       self.conditions = conditions
       @id = OpenSSL::HMAC.new(rand.to_s, 'sha1').to_s
       @options = DEFAULT_BOT_OPTIONS.merge(options)
+      @master = nil
     end
 
     # Method used to run the bots action. Override this when using
@@ -39,10 +40,13 @@ module InstantSlackBot #:nodoc:
     #
     def action(arg)
       if ['Proc', 'Method'].include?@action.class.name
-        @action.call(arg[:message])
+        begin
+          @action.call(arg[:message])
+        rescue StandardError, msg
+          raise RuntimeError, "InstantSlackBot::Bot#action bot action error #{msg}"
+        end
       else
-        raise StandardError,
-          "InstantSlackBot::Bot#action passed invalid class type #{msg}"
+        raise ArgumentError, "InstantSlackBot::Bot#action invalid class #{msg}"
       end
     end
 
@@ -123,9 +127,12 @@ module InstantSlackBot #:nodoc:
       when 'Regexp'
         true if condition.match(arg[:message]['text'])
       when 'Proc', 'Method'
-        true if condition.call(arg[:message])
+        begin
+          true if condition.call(arg[:message])
+        raise RuntimeError, "InstantSlackBot::Bot#action bot condition error #{msg}"
+        end
       else
-        raise "Condition (#{condition}) is an invalid class " \
+        raise ArgumentError, "Condition (#{condition}) is an invalid class " \
           "(#{condition.class.name})"
       end
     end
