@@ -9,11 +9,11 @@ require_relative '../instant_slack_bot'
 instabot_options = { 
   token: ENV['SLACK_TOKEN'],
   options: {
-    debug: true,
-  }
+    debug: false,
+#    use_api: :rtm, <- does not work
+  },
   post_options: {
-    'username' => 'shenanigans',
-    'icon_emoji' => ':partly_sunny:'
+#    'username' => 'shenanigans'
   }
 }
 
@@ -36,9 +36,5 @@ end
 #action = MyModule::Action.new
 
 master = InstantSlackBot::Master.new(instabot_options)
-my_bot = MyBot.new({ options: { use_api: :rtm } })
-
-#pp my_bot.class.superclass
-
-master << my_bot
+master << MyBot.new
 master.run

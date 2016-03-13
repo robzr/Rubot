@@ -9,8 +9,9 @@ module InstantSlackBot #:nodoc:
   # Bot class is used to define a set of conditions, which, once met, result in
   #   an action.
   class Bot
-    attr_accessor :action, :conditions, :channels, :master, :options
+    attr_accessor :action, :conditions, :channels, :master, :options, :post_options
     attr_reader :id
+    CLASS = 'InstantSlackBot::Bot'
 
     # Instantiates a Bot object
     # @note `:action` and `:conditions` are both required, but can be populated
@@ -32,6 +33,7 @@ module InstantSlackBot #:nodoc:
       self.conditions = conditions
       @id = OpenSSL::HMAC.new(rand.to_s, 'sha1').to_s
       @options = DEFAULT_BOT_OPTIONS.merge(options)
+      @post_options = DEFAULT_BOT_POST_OPTIONS.merge(post_options)
       @master = nil
     end
 
@@ -43,10 +45,10 @@ module InstantSlackBot #:nodoc:
         begin
           @action.call(arg[:message])
         rescue StandardError, msg
-          raise RuntimeError, "InstantSlackBot::Bot#action bot action error #{msg}"
+          raise RuntimeError, "#{CLASS}#action bot action error #{msg}"
         end
       else
-        raise ArgumentError, "InstantSlackBot::Bot#action invalid class #{msg}"
+        raise ArgumentError, "#{CLASS}#action invalid class #{msg}"
       end
     end
 
@@ -70,14 +72,14 @@ module InstantSlackBot #:nodoc:
     def conditions(arg)
       run_action = false
       case options[:condition_logic]
-      when :or
-        @conditions.each do |condition|
-          run_action ||= check_condition(arg.merge({ condition: condition }))
-        end
       when :and
         run_action = true
         @conditions.each do |condition|
           run_action &&= check_condition(arg.merge({ condition: condition }))
+        end
+      else
+        @conditions.each do |condition|
+          run_action ||= check_condition(arg.merge({ condition: condition }))
         end
       end
       run_action
@@ -129,7 +131,8 @@ module InstantSlackBot #:nodoc:
       when 'Proc', 'Method'
         begin
           true if condition.call(arg[:message])
-        raise RuntimeError, "InstantSlackBot::Bot#action bot condition error #{msg}"
+        rescue RuntimeError, msg
+          raise "#{CLASS}#check_condition condition error #{msg}"
         end
       else
         raise ArgumentError, "Condition (#{condition}) is an invalid class " \

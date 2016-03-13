@@ -34,6 +34,7 @@ module InstantSlackBot
       connect_to_slack_webrpc
       @slack_connection = @slack.auth.test.body
       raise "Error authenticating to Slack WebRPC" unless @slack_connection['ok']
+      @post_options['username'] ||= @slack_connection['user']
 
       update_channels
       update_users
@@ -243,7 +244,7 @@ module InstantSlackBot
 
     def set_user_typing(bot: nil, message: nil)
       # typing can be done every 3 seconds via a thread 
-      message = bot.options[:post_options].merge({
+      message = bot.post_options.merge({
         'channel' => message['channel'],
         'type' => 'typing'
       })
@@ -263,7 +264,7 @@ module InstantSlackBot
           message_plussed = message_plus(message: message)
           if bot.conditions(master: self, message: message_plussed)
             set_user_typing(bot: bot, message: message) if bot.options[:use_api] == :rtm
-            response = @post_options.merge(bot.options[:post_options])
+            response = @post_options.merge(bot.post_options)
               .merge!({ 'type' => 'message', 'channel' => message['channel'] })
             action = bot.action(master: self, message: message_plussed)
             action = { text: action.to_s } if action.class.name != 'Hash'

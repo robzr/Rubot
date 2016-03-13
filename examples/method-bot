@@ -12,7 +12,7 @@ instabot_options = {
     debug: true,
     post_options: {
       'user_name' => 'shenanigans',
-      'icon_emoji' => ':partly_sunny:'
+      'icon_emoji' => ':squirrel:'
 } } }
 
 

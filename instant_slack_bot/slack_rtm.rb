@@ -17,7 +17,7 @@ module InstantSlackBot
     CLASS = 'InstantSlackBot::SlackRTM'
     VALID_DRIVER_EVENTS = [:open, :close, :message, :error]
     SLACK_RTM_START_URL = 'https://slack.com/api/rtm.start'
-    THROTTLE_TIMEOUT = 0.01
+    DEFAULT_THROTTLE_TIMEOUT = 0.01
 
     attr_accessor :auto_reconnect, :debug, :ping_threshold
     attr_reader :connection_status
@@ -28,7 +28,7 @@ module InstantSlackBot
       debug: false,
       open_wait_timeout: 15,
       ping_threshold: 15,
-      select_timeout: THROTTLE_TIMEOUT,
+      throttle_timeout: DEFAULT_THROTTLE_TIMEOUT,
       token: nil,
       url: nil
     )
@@ -36,7 +36,7 @@ module InstantSlackBot
       @debug = debug
       @open_wait_timeout = open_wait_timeout
       @ping_threshold = ping_threshold
-      @select_timeout = select_timeout
+      @throttle_timeout = throttle_timeout
       @url = url
 
       @connection_status = :closed # or [:connecting, :initializing, :open]
@@ -86,11 +86,10 @@ module InstantSlackBot
     private
 
     def poll_websocket
-      if IO.select([@driver_client.socket], nil, nil, @select_timeout)
+      if IO.select([@driver_client.socket], nil, nil, @throttle_timeout)
         data = @driver_client.socket.readpartial 4096
         @driver.parse data unless data.nil? || data.empty?
       end
-      tdiff = Time.new.to_i - @last_activity
       if Time.new.to_i - @last_activity > @ping_threshold
         @driver.ping
         @last_activity = Time.new.to_i
@@ -129,7 +128,7 @@ module InstantSlackBot
         connect_to_slack
         loop do
           if @connection_status == :closed
-            sleep @select_timeout
+            sleep @throttle_timeout
           else
             poll_websocket 
           end
@@ -217,7 +216,7 @@ module InstantSlackBot
 
     def wait_for_open
       start_time = Time.new.to_i
-      sleep @select_timeout while @connection_status != :open &&
+      sleep @throttle_timeout while @connection_status != :open &&
         (Time.new.to_i - start_time < @open_wait_timeout)
       raise StandardError, "Timed out waiting for open" unless @connection_status == :open
     end
