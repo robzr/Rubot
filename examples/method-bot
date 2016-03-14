@@ -1,20 +1,19 @@
 #!/usr/bin/env ruby
 #
-# InstantSlackBot Class based example
+# InstantSlackBot Method based example
 #   http://github.com/robzr/instant-slack-bot
 #
-require 'pp'
 require_relative '../instant_slack_bot'
 
 instabot_options = { 
   token: ENV['SLACK_TOKEN'],
   options: {
-    debug: true,
+    debug: false,
     post_options: {
-      'user_name' => 'shenanigans',
       'icon_emoji' => ':squirrel:'
-} } }
-
+    }
+  }
+}
 
 def conditions(message)
   return true if message['channel'] =~ /^bot_heaven/
@@ -24,18 +23,15 @@ def conditions(message)
 end
 
 def action(message)
-  pp message
   "*I am responding* _to_ @#{message['username']} in channel ##{message['channelname']}\n"
 end
 
 master = InstantSlackBot::Master.new(instabot_options)
 
 my_bot = InstantSlackBot::Bot.new(
-  conditions: self.method(:conditions),
-  action: self.method(:action)
+  conditions: method(:conditions),
+  action: method(:action)
 )
-
-#pp my_bot.class.superclass
 
 master << my_bot
 master.run

@@ -10,11 +10,8 @@ instabot_options = {
   token: ENV['SLACK_TOKEN'],
   options: {
     debug: false,
-#    use_api: :rtm, <- does not work
+    use_api: :rtm
   },
-  post_options: {
-#    'username' => 'shenanigans'
-  }
 }
 
 class MyBot < InstantSlackBot::Bot
@@ -31,9 +28,6 @@ class MyBot < InstantSlackBot::Bot
     "*I am responding* _to_ @#{message['username']} in channel ##{message['channelname']}\n"
   end
 end
-
-#condition = MyModule::Conditions.new
-#action = MyModule::Action.new
 
 master = InstantSlackBot::Master.new(instabot_options)
 master << MyBot.new
