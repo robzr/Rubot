@@ -1,4 +1,4 @@
-# InstantSlackBot::Bot class - defines a single Bot instance
+# InstantSlackBot::Bot - defines a single Bot instance
  
 module InstantSlackBot #:nodoc:
   require 'pp'

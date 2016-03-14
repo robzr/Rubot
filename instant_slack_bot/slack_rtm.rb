@@ -1,7 +1,17 @@
-# InstantSlackBot::SlackRTM - Slack RTM API class
+# InstantSlackBot::SlackRTM - Slack RTM API connection class
+# InstantSlackBot::WebSocketDriverClient - used by WebSocket::Driver
 #
-# This class is based on Rémi Delhaye's slack-rtm-api
+# These classes are based on Rémi Delhaye's slack-rtm-api gem
 #   http://github.com/rdlh/slack-rtm-api
+#
+# The following additions have been made:
+# - Queue based for sending & receiving messages
+# - Dedicated thread to monitor send queue
+# - Auto-start optionally blocks until connection is open
+# - Automatically reconnects on connection loss
+# - Dynamically updates Slack connection URL
+# - Connection state tracked in single variable
+# - Uses websocket ping/pong to monitor connection
 
 require 'json'
 require 'net/http'
@@ -42,6 +52,7 @@ module InstantSlackBot
       @connection_status = :closed # or [:connecting, :initializing, :open]
       @event_handlers = {}
       @send_queue = Queue.new
+      @receive_queue = Queue.new
       @connection_thread = nil
 
       if @url || token
@@ -70,12 +81,24 @@ module InstantSlackBot
       @driver.close 
     end
 
+    def get(non_block=false)
+      @receive_queue.shift(non_block)
+    end
+
+    alias_method :pop, :get
+    alias_method :shift, :get
+
+    def length
+      @receive_queue.length
+    end
+
     def send(message)
       message[:id] = message_id
       @send_queue << message.to_json
     end
 
     alias_method :<<, :send
+    alias_method :push, :send
 
     def start
       launch_connection_thread
@@ -136,12 +159,12 @@ module InstantSlackBot
       end
       @connection_thread.abort_on_exception = true
     end
-
+    
     def launch_send_thread
       @send_thread = Thread.new do
         loop do
           message = @send_queue.shift
-          log "WebSocket::Driver send #{message}"
+          log "WebSocket::Driver sending #{message}"
           sleep 0.01 until @connection_status == :open
           @driver.text message
         end
@@ -168,16 +191,17 @@ module InstantSlackBot
     def register_driver_close
       @driver.on :close do |event|
         log "WebSocket::Driver received a close event"
-        @event_handlers[:close].call if @event_handlers[:close]
         @connection_status = :closed
+        @last_activity = Time.new.to_i
+        @event_handlers[:close].call if @event_handlers[:close]
         connect_to_slack if @auto_reconnect
       end
     end
 
     def register_driver_error
       @driver.on :error do |event|
-        @last_activity = Time.new.to_i
         log "WebSocket::Driver received an error"
+        @last_activity = Time.new.to_i
         @event_handlers[:error].call if @event_handlers[:error]
       end
     end
@@ -186,7 +210,7 @@ module InstantSlackBot
       @driver.on :message do |event|
         data = JSON.parse event.data
         @last_activity = Time.new.to_i
-        log "WebSocket::Driver received an event with data: #{data}"
+        log "WebSocket::Driver received a message: #{data}"
         case data['type']
         when 'hello'
           @connection_status = :open
@@ -194,16 +218,17 @@ module InstantSlackBot
           @driver_client.url = data['url'].to_s
           log "#{CLASS} message URL Updated #{data['url']}"
         else
-          @event_handlers[:message].call data unless @event_handlers[:message].nil?
+          @receive_queue << data
+          @event_handlers[:message].call data if @event_handlers[:message]
         end
       end
     end
 
     def register_driver_open
       @driver.on :open do
+        log "WebSocket::Driver :open"
         @connection_status = :initializing
         @last_activity = Time.new.to_i
-        log "WebSocket::Driver :open"
         @event_handlers[:open].call if @event_handlers[:open]
       end
     end
