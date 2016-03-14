@@ -37,6 +37,14 @@ module InstantSlackBot #:nodoc:
       @master = nil
     end
 
+    # Adds a condition or conditions to this Bot instance
+    # @param arg [String, Regexp] (see #conditions=)
+    # @param arg [Proc] (see #conditions=)
+    # @param arg [Array] (see #conditions=)
+    def <<(arg)
+      @conditions << arg
+    end
+
     # Method used to run the bots action. Override this when using
     # a Class based bot.
     #
@@ -104,12 +112,8 @@ module InstantSlackBot #:nodoc:
       end
     end
 
-    # Adds a condition or conditions to this Bot instance
-    # @param arg [String, Regexp] (see #conditions=)
-    # @param arg [Proc] (see #conditions=)
-    # @param arg [Array] (see #conditions=)
-    def <<(arg)
-      @conditions << arg
+    def slack
+      master.slack
     end
 
     private

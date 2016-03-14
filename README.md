@@ -18,10 +18,11 @@ Simple, extensible, multithreaded Slack Bot Ruby API
 * Create at least one **InstantSlackBot::Bot**. Each Bot needs at least one condition and an action.
 * **conditions** determine when the Bot responds and can be as simple as a text string or 
   regular expression which is matched against each message, or Procs/Methods/inherited Class for more sophisticated logic.
-* Multiple conditions can matched with boolean **AND** or **OR** logic (**or** is the default).
+* Conditions simply return true or false, and multiple conditions are matched with boolean **AND** or **OR** logic (**or** is the default).
 * An **action** forms the response when the conditions are met. An action can be as simple as a text string, but 
 will usually be a Proc/Lambda, Method or part of an inherited class.
 * When using Procs/Lambdas or Methods for conditions or actions, a hash argument will pass the received message & more
-* Full access to the Slack API is available to both actions and conditions
+* An **action** can return either a text string, or a partial/complete message {} hash as used by Slack's API.  
+* Full access to the Slack API is available to both actions and conditions using the Bot.master object.
 * For the most flexibility, inherit the Bot class and override the #conditions and #action methods (see [class-example](https://github.com/robzr/instant-slack-bot/blob/master/examples/class-bot)).
 * Finally, register the Bots with the Master and call **Master#run** to begin operation.
