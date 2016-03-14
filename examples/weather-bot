@@ -1,98 +1,49 @@
 #!/usr/bin/env ruby
 #
 # InstantSlackBot based weather bot.
-#
 #   http://github.com/robzr/instant-slack-bot
-#
 #     -- @robzr 3/2016
 #
-# To Install, first:
-#
-# sudo gem install slack-api weather_underground
+# Depends on gems: slack-api weather_underground 
 
-TRIGGER_PHRASE = 'weather'
-BOT_NAME = 'WeatherBot'
-BOT_HELP = ">>> *Hello @%s, thanks for trying #{BOT_NAME}!*\n" \
-    "To retrieve the weather, just type \"_#{TRIGGER_PHRASE} location_\", " \
-    " where _location_ is a zip code or a city, state\n" \
-    "_<https://github.com/robzr/instant-slack-bot|" \
-    "See the closet where #{BOT_NAME} charges at night.>_\n"
-CMDLINE_HELP = %(
-  \nGet Slack API token at https://api.slack.com/docs/oauth-test-tokens\n
-  Get Weather Underground API key at: https://www.wunderground.com/weather/api\n
-  Channels and channel regex's can be specified multiple times. If none are
-  specified, the default behavior is to monitor all available channels.\n
-).gsub(/^  /, '')
+GIT_URL = 'https://github.com/robzr/instant-slack-bot/tree/master/examples'
+BOT_HELP = <<-EOF.gsub(/^  /, '')
+  >>> *Hello @%s, thanks for trying WeatherBot!*\n
+  To retrieve the weather, just type \"_weather location_\"
+  where _location_ is a zip code or a city, state\n
+  _<#{GIT_URL}|See the closet where WeatherBot charges at night.>_\n
+  EOF
 
-require 'optparse'
 require 'weather_underground'
 require_relative '../instant_slack_bot'
 
-instabot_options = { 
-  options: { 
-    debug: false,
-  },
-  post_options: { 
-    'icon_emoji' => ':partly_sunny:',
-    'username' => BOT_NAME,
-  },
-  token: ENV['SLACK_TOKEN']
-}
+abort 'Missing Slack token' unless ENV['SLACK_TOKEN']
+abort 'Missing Weather Underground key' unless ENV['WUNDERGROUND_KEY']
 
-channels = []
-options = {}
-
-OptionParser.new do |opts|
-  opts.banner = "Usage: #{$PROGRAM_NAME.sub(%r{.*/}, '')} " \
-    "-s token -w key [-c channel|-r regex [-c ...|-r ...]]\n\n"
-
-  opts.on('-c', '--channel', '=MANDATORY', 'Provide a channel name to monitor')                   { |arg| channels << arg }
-  opts.on('-h', '--help', 'Display this help.')                                                   { abort "#{opts.help}#{CMDLINE_HELP}" }
-  opts.on('-q', '--quiet', 'Suppress output.')                                                    {       options[:quiet] = true }
-  opts.on('-r', '--channel-regex', '=MANDATORY', 'Provide a regex for channels to monitor')       { |arg| channels << %r{arg} }
-  opts.on('-s', '--slack-token', '=MANDATORY', 'Specify the Slack API token')                     { |arg| instabot_options[:token] = arg }
-  opts.on('-w', '--wu-key', '=MANDATORY', 'Specify the Weather Underground API key')              { |arg| options[:wu_key] = arg }
-end.parse!
-
-abort 'Missing Slack token - use -h for help' unless instabot_options[:token]
-abort 'Missing Weather Underground token - use -h for help' unless options[:wu_key]
-
-instabot = InstantSlackBot::Master.new instabot_options.merge({ channels: channels })
-
-unless options[:quiet]
-  puts "Found #{instabot.users.length} users online\n" \
-       "Monitoring the following channels: " \
-       "#{instabot.channels(:subscribed).join(', ')}"
-end
-
-get_weather = proc do |message|
-  location = message['text'].sub(/^#{TRIGGER_PHRASE}\s+/, '')
+def get_weather(message)
+  location = message['text'].sub(/^weather\s+/, '')
   case location
   when 'help'
     sprintf BOT_HELP, message['username']
   when 'location'
     msg = ">_*Nice try @#{message['username']}, you clown.*_"
   else
-    print "Responding to #{message['username']} in #{message['channelname']} " \
-      "for location #{location} - " unless options[:quiet]
     begin
       msg = ''
-      forecast = WeatherUnderground::Base.new(options[:wu_key]).forecast(location.to_s)
-      pp forecast if options[:debug]
+      forecast = WeatherUnderground::Base.new(
+        ENV['WUNDERGROUND_KEY']
+      ).forecast(location.to_s)
       if forecast['response'].key?('error')
         case forecast['response']['error']['type']
         when 'querynotfound'
-          puts 'could not find location.' unless options[:quiet]
           msg = ">_*Weather Underground could could not find the location " \
             "#{location}, try again.*_"
         else
-          puts "Weather Underground returned error #{forecast['response']['error']['type']}" \
-               " (#{forecast['response']['error']['description']})." unless options[:quiet]
-          msg = ">_*Weather Underground returned error #{forecast['response']['error']['type']} " \
-                "(#{forecast['response']['error']['description']})*_"
+          msg = ">_*Weather Underground returned error " \
+            "#{forecast['response']['error']['type']} " \
+            "(#{forecast['response']['error']['description']})*_"
         end
       elsif forecast['response'].key?('results')
-        puts 'wunderground returned ambiguous results.' unless options[:quiet]
         msg = '>_*The location you tried is ambiguious, try something more specific.*_'
       else
         msg = "*<#{forecast['current_observation']['forecast_url']}|" \
@@ -100,31 +51,33 @@ get_weather = proc do |message|
           "#{forecast['current_observation']['temp_f']}°F with " \
           "#{forecast['current_observation']['relative_humidity']} Humidity in " \
           "_#{forecast['current_observation']['display_location']['full']}._>*\n>>>"
+
         forecast['forecast']['txt_forecast']['forecastday'].each do |forecast_detail|
           msg << "*#{forecast_detail['title']}*  #{forecast_detail['fcttext']}\n"
         end
-        puts 'forecast successfully returned.' unless options[:quiet]
       end
       msg
-    rescue Exception => error_msg # TODO: clean handling
-      puts "Wunderground raised exception (#{error_msg})" unless options[:quiet]
+    rescue StandardError => error_msg
       "Sorry, had trouble speaking with Weather Underground (#{error_msg})"
     end
   end
 end
 
-check_bot = proc do |message|
-  if message['text'] =~ %r{^#{TRIGGER_PHRASE}\s+\w+}
-    true
-  else
-    false
-  end
-end
+instabot_options = { 
+  options: { 
+    debug: false,
+  },
+  post_options: { 
+    'icon_emoji' => ':partly_sunny:',
+    'username' => 'WeatherBot',
+  },
+  token: ENV['SLACK_TOKEN']
+}
 
+instabot = InstantSlackBot::Master.new(instabot_options)
 instabot << InstantSlackBot::Bot.new(
-  options: { use_api: :webrpc },
-  conditions: check_bot,
-  action: get_weather
+  conditions: /^weather\s+/,
+  action: method(:get_weather)
 )
 
 instabot.run
