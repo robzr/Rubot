@@ -5,7 +5,7 @@ Simple, extensible, multithreaded Slack Bot Ruby API
 - Multiple bots can share a single API connection object
 - Posting can be done via RTM API for low latency sending
 
-###[InstantSlackBot Wiki](https://github.com/robzr/instant-slack-bot/wiki) features:
+####See the [InstantSlackBot Wiki](https://github.com/robzr/instant-slack-bot/wiki) for
 - [Design Goals](https://github.com/robzr/instant-slack-bot/wiki)
 - [Architectural Overview](https://github.com/robzr/instant-slack-bot/wiki/Architecture)
 - [Short Examples](https://github.com/robzr/instant-slack-bot/wiki/Short-Examples)
