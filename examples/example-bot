@@ -6,36 +6,14 @@
 #
 #     -- @robzr 3/2016
 #
-require 'optparse'
 require_relative '../instant_slack_bot'
 
-channels = []
-instabot_options = {}
-
-OptionParser.new do |opts|
-  program_name = $PROGRAM_NAME.sub(%r{.*/}, '')
-  opts.banner = "Usage: #{program_name} [-c channel [-c ...]] [-r regex [-r ...]] " \
-    "[-h] -s token\n\n"
-
-  opts.on('-c', '--channel', '=MANDATORY', 'Provide a channel name to monitor') do |arg|
-    channels << arg
-  end
-  opts.on('-r', '--channel-regex', '=MANDATORY', 'Regex pattern to match channels') do |arg|
-    channels << %r{#{arg}}
-  end
-  opts.on('-h', '--help', 'Display this help.') { abort opts.help }
-  opts.on('-s', '--slack-token', '=MANDATORY', 'Specify the Slack API token') do |arg|
-    instabot_options[:token] = arg
-  end
-end.parse!
-
-abort 'No Slack token specified - use -h for help' unless instabot_options[:token]
-
-instabot = InstantSlackBot::Master.new instabot_options.merge({ channels: channels })
+instabot = InstantSlackBot::Master.new(token: ENV['SLACK_TOKEN'])
 
 # Print a few details about the Slack connection and Bot
 puts "Logged into Slack as #{instabot.slack_connection['user']}"
-puts "Using team #{instabot.slack_connection['team']} (#{instabot.slack_connection['url']})"
+puts "Using team #{instabot.slack_connection['team']} " \
+  "(#{instabot.slack_connection['url']})"
 puts "All users\n -> #{instabot.users.join("\n -> ")}"
 puts "Available channels\n -> #{instabot.channels(:available).join("\n -> ")}"
 puts "Subscribed channels\n -> #{instabot.channels(:subscribed).join("\n -> ")}"
@@ -46,30 +24,31 @@ simple_bot = InstantSlackBot::Bot.new(
   action: 'Hello, my friend.'
 )
 
-# Register the bot with the master using <<
+# Register the bot with the master
 instabot << simple_bot
 
-# Regex trigger condition and an inline proc action
+# Add another bot using a Regex condition and an inline proc action
 instabot << InstantSlackBot::Bot.new(
   conditions: /(who|how) are you, instabot/, 
   action: proc { |message| "I\'m here and I\'m fine, @#{message['username']}." }
 )
 
-# Proc based conditions and action
+# Lambda based condition array and action
 conditions = [
-  proc do |message|
+  lambda do |message|
     message['channelname'] == 'general' && 
       message['text'].length < 15 &&
       message['text'] =~ /^instabot short/i
   end,
-  proc do |message|
+  lambda do |message|
     message['channelname'] == 'general' &&
       message['text'].length > 15 &&
       message['text'] =~ /^instabot long/i
   end
 ]
-action = proc do |message|
-  "*Matched _Text* from_ ~#{message['username']}~ in ##{message['channelname']}\n>>>#{message['text']}"
+action = lambda do |message|
+  "*Matched _Text* from_ ~#{message['username']}~ in ##{message['channelname']}"\
+  "\n>>>#{message['text']}"
 end
 
 instabot << InstantSlackBot::Bot.new(conditions: conditions, action: action)
