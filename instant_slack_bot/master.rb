@@ -48,10 +48,12 @@ module InstantSlackBot
         add_channel arg
       when 'Array'
         arg.each { |arg| self << arg }
-      when 'InstantSlackBot::Bot', 'Hash'
+      when 'Hash'
         add_bot arg
       else
-        if arg.class.superclass.name == 'InstantSlackBot::Bot'
+        if [arg.class.name, arg.class.superclass.name].include?(
+          'InstantSlackBot::Bot'
+        )
           add_bot arg
         else
           raise "Master#<< invalid class (#{arg.class.name})"
@@ -94,6 +96,14 @@ module InstantSlackBot
       end
     end
 
+    def delete(bot_id)
+      return nil unless @bots.key? bot_id
+      @threads[bot_id].each { |thread| thread.kill }
+      @threads.delete(bot_id)
+      @bots.delete(bot_id)
+      true
+    end
+
     # Event loop - does not return (yet).
     def run
       loop do
@@ -116,16 +126,15 @@ module InstantSlackBot
 
     def add_bot(bot)
       case bot.class.name
-      when 'InstantSlackBot::Bot'
-        @bots[bot.id] = bot
-        @threads[bot.id] = []
-        bot.master = self
+      when 'NilClass'
       when 'Hash'
         add_bot InstantSlackBot::Bot.new(bot)
       when 'Array'
         bot.each { |bot| add_bot bot }
       else
-        if bot.class.superclass.name == 'InstantSlackBot::Bot'
+        if [bot.class.name, bot.class.superclass.name].include?(
+          'InstantSlackBot::Bot'
+        )
           @bots[bot.id] = bot
           @threads[bot.id] = []
           bot.master = self

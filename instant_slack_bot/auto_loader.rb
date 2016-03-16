@@ -26,17 +26,46 @@ module InstantSlackBot
       launch_watcher_thread
     end
 
+    def master_add(file)
+      unless load file
+        puts "Error: could not load #{file}"
+        return nil
+      end
+      class_name = get_class_name file 
+      if eval "defined? #{class_name}.name"
+        puts "Loading #{class_name}"
+        @bots[file] = eval "#{class_name}.new"
+        puts "GOT HERE"
+      else
+        puts "Error: cannot find #{class_name}" 
+      end
+      pp @bots[file]
+      @master << @bots[file]
+    rescue StandardError, msg
+      puts "AutoLoader#master_add - error #{msg}"
+    end
+
+    def master_delete(file)
+      return unless @bots.key? file
+      @master.delete(@bots[file].id)
+      @bots.delete(file)
+    rescue StandardError, msg
+      puts "AutoLoader#master_delete - error #{msg}"
+    end
+
     def update_master(master = @master)
       while @changes.length > 0
         change = @changes.shift
         case change[:action]
         when :added
-          master_add(file)
+          master_add change[:file]
         when :deleted
-          master_delete(file)
+          master_delete change[:file]
         when :changed
-          master_delete(file)
-          master_add(file)
+          master_delete change[:file]
+          master_add change[:file]
+        else
+          raise ArgumentError, "Invalid change type"
         end
       end
     end
@@ -81,17 +110,13 @@ module InstantSlackBot
       @changes << { action: :deleted, file: file }
     end
 
-    def master_add(file)
-      # test if file is valid, if not, complain & don't add to @bot
-      @bot[file] = Bot.new(options)
-      @master << @bot[file]
-    end
-
-    def master_delete(file)
-      return unless @bot.key? file
-# Need to add this method
-#      @master.unload(@bot[file])
-      @bot.delete(file)
+    def get_class_name(file)
+      file.gsub(/.*\//, '')
+        .sub(/\.rb$/, '')
+        .split(/_/)
+        .map { |word| word.capitalize } 
+        .join
+        .sub(/.*/, '\&::\&')
     end
 
     def launch_watcher_thread
