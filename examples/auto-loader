@@ -6,6 +6,6 @@ require_relative '../instant_slack_bot'
 
 master = InstantSlackBot::Master.new(token: ENV['SLACK_TOKEN'])
 
-auto_loader = InstantSlackBot::AutoLoader.new(directory: 'auto-loader-dir', master: master)
+auto_loader = InstantSlackBot::AutoLoader.new(debug: true, directory: 'auto-loader-dir', master: master)
 
 master.run

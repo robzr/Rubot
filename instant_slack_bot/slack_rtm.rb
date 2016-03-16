@@ -21,7 +21,7 @@ require 'logger'
 require 'thread'
 include IO::WaitReadable
 
-module InstantSlackBot
+module InstantSlackBot #:nodoc:
 
   class SlackRTM
     CLASS = 'InstantSlackBot::SlackRTM'

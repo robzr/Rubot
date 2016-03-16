@@ -1,13 +1,12 @@
 # InstantSlackBot::Bot - defines a single Bot instance
  
-module InstantSlackBot #:nodoc:
-  require 'pp'
-  require 'slack'
-  require 'base64'
-  require 'openssl'
+require 'pp'
+require 'slack'
+require 'base64'
+require 'openssl'
 
-  # Bot class is used to define a set of conditions, which, once met, result in
-  #   an action.
+module InstantSlackBot #:nodoc:
+
   class Bot
     attr_accessor :action, :conditions, :channels, :master, :options, :post_options
     attr_reader :id

@@ -1,10 +1,10 @@
 # InstantSlackBot::Master - multiple Bots run in a single Master class
 
-module InstantSlackBot
-  require 'pp'
-  require 'slack'
-  require 'thread'
+require 'pp'
+require 'slack'
+require 'thread'
 
+module InstantSlackBot #:nodoc:
   class Master
     attr_accessor :bots, :options, :post_options, :slack
     attr_reader :slack_connection # may be unnecessary

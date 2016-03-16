@@ -2,20 +2,25 @@
 #   files that are added, deleted or changed and loads a public queue (@changes)
 #   with a description of the event
 
-module InstantSlackBot
+require 'pp'
+require 'set'
 
-  require 'pp'
-  require 'set'
+module InstantSlackBot #:nodoc:
 
   class AutoLoader
+
+    CLASS = 'InstantSlackBot::AutoLoader'
+
     attr_accessor :changes
 
     def initialize(
+      debug: nil,
       directory: '.', 
       glob: '*.rb', 
       master: nil, 
       refresh: 0.5
     )
+      @debug = debug
       @glob = "#{directory}/#{glob}"
       @master = master
       @refresh = refresh
@@ -23,34 +28,44 @@ module InstantSlackBot
       @bots = {}
       @changes = Queue.new
       @files = {}
+      @launcher_thread = nil
       launch_watcher_thread
     end
 
+    def load_file(file)
+      load file
+      true
+    rescue SyntaxError => msg
+      puts "#{CLASS} syntax error in #{file}, skipping load"
+      puts "#{msg.to_s.gsub(/^/, ' -> ')}"
+      false
+    end
+
+
     def master_add(file)
-      unless load file
-        puts "Error: could not load #{file}"
-        return nil
-      end
+      return false unless load_file file
       class_name = get_class_name file 
       if eval "defined? #{class_name}.name"
-        puts "Loading #{class_name}"
         @bots[file] = eval "#{class_name}.new"
-        puts "GOT HERE"
+        puts "#{CLASS} adding Bot #{class_name} #{@bots[file].id}" if @debug
+        @master << @bots[file]
       else
-        puts "Error: cannot find #{class_name}" 
+        puts "#{CLASS} missing Class #{class_name}, skipping load"
       end
-      pp @bots[file]
-      @master << @bots[file]
-    rescue StandardError, msg
-      puts "AutoLoader#master_add - error #{msg}"
     end
 
     def master_delete(file)
       return unless @bots.key? file
+      puts "#{CLASS} deleting bot: #{@bots[file].id}" if @debug
       @master.delete(@bots[file].id)
       @bots.delete(file)
-    rescue StandardError, msg
-      puts "AutoLoader#master_delete - error #{msg}"
+      module_name = get_module_name(file)
+      (eval "#{module_name}.constants").each do |class_name|
+        puts "Removing #{module_name}::#{class_name}"
+        eval "#{module_name}.send(:remove_const, '#{class_name}')"
+      end
+    rescue Exception => msg
+      puts "#{CLASS}#master_delete - error #{msg}"
     end
 
     def update_master(master = @master)
@@ -64,21 +79,11 @@ module InstantSlackBot
         when :changed
           master_delete change[:file]
           master_add change[:file]
-        else
-          raise ArgumentError, "Invalid change type"
         end
       end
     end
 
     private
-
-    def file_stat(file)
-      stat = File.stat(file)
-      {
-        size: stat.size,
-        mtime: stat.mtime
-      }
-    end
 
     def compare_directory
       new_files = load_directory
@@ -110,17 +115,28 @@ module InstantSlackBot
       @changes << { action: :deleted, file: file }
     end
 
+    def file_stat(file)
+      stat = File.stat(file)
+      {
+        size: stat.size,
+        mtime: stat.mtime
+      }
+    end
+
     def get_class_name(file)
+        get_module_name(file).sub(/.*/, '\&::\&')
+    end
+
+    def get_module_name(file)
       file.gsub(/.*\//, '')
         .sub(/\.rb$/, '')
         .split(/_/)
         .map { |word| word.capitalize } 
         .join
-        .sub(/.*/, '\&::\&')
     end
 
     def launch_watcher_thread
-      Thread.new do
+      @launcher_thread = Thread.new do
         loop do 
           time_starting = Time.new.to_f
           compare_directory
@@ -129,6 +145,7 @@ module InstantSlackBot
           sleep delay if delay > 0
         end
       end
+      @launcher_thread.abort_on_exception = true
     end
 
     def load_directory
