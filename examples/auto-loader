@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+
+require_relative '../instant_slack_bot'
+
+master = InstantSlackBot::Master.new(token: ENV['SLACK_TOKEN']
+
+auto_loader = InstantSlackBot::AutoLoader.new(directory: 'auto_loader_test', master: master)
+
+master.run
