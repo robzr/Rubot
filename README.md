@@ -8,6 +8,7 @@ Simple, extensible, multithreaded Slack Bot Ruby API
 ####See the [InstantSlackBot Wiki](https://github.com/robzr/instant-slack-bot/wiki) for
 - [Design Goals](https://github.com/robzr/instant-slack-bot/wiki)
 - [Architectural Overview](https://github.com/robzr/instant-slack-bot/wiki/Architecture)
+- [HOWTO](https://github.com/robzr/instant-slack-bot/wiki/HOWTO)
 - [Short Examples](https://github.com/robzr/instant-slack-bot/wiki/Short-Examples)
 - [TODO List for upcoming features](https://github.com/robzr/instant-slack-bot/wiki/TODO)
 - [License & Credits](https://github.com/robzr/instant-slack-bot/wiki)
