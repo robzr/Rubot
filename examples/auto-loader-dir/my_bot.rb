@@ -5,13 +5,13 @@ module MyBot
   class MyBot < InstantSlackBot::Bot
     def conditions(arg)
       message = arg[:message]
-      return true if message['text'] =~ /^hi /
+      return true if message['text'] =~ /^mybot /
       false
     end
   
     def action(arg)
       message = arg[:message]
-      "bobo @#{message['username']}"
+      "Hello @#{message['username']}"
     end
   end
 
