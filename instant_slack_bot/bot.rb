@@ -8,9 +8,11 @@ require 'openssl'
 module InstantSlackBot #:nodoc:
 
   class Bot
+    CLASS = 'InstantSlackBot::Bot'
     attr_accessor :action, :conditions, :channels, :master, :options, :post_options
     attr_reader :id
-    CLASS = 'InstantSlackBot::Bot'
+    @@options = {}
+    @@post_options = {}
 
     # Instantiates a Bot object
     # @note `:action` and `:conditions` are both required, but can be populated
@@ -30,9 +32,10 @@ module InstantSlackBot #:nodoc:
     )
       self.action = action
       self.conditions = conditions
-      @id = OpenSSL::HMAC.new(rand.to_s, 'sha1').to_s
       @options = DEFAULT_BOT_OPTIONS.merge(options)
+        .merge(@@options)
       @post_options = DEFAULT_BOT_POST_OPTIONS.merge(post_options)
+        .merge(@@post_options)
       @master = nil
     end
 
@@ -47,11 +50,11 @@ module InstantSlackBot #:nodoc:
     # Method used to run the bots action. Override this when using
     # a Class based bot.
     #
-    def action(arg)
+    def action(message: nil)
       if ['Proc', 'Method'].include?@action.class.name
         begin
-          @action.call(arg[:message])
-        rescue StandardError, msg
+          @action.call(message: message)
+        rescue StandardError => msg
           raise RuntimeError, "#{CLASS}#action bot action error #{msg}"
         end
       else
@@ -76,17 +79,17 @@ module InstantSlackBot #:nodoc:
     # @param :channel [String] Channel name where the message originated
     # @param :text [String] Text of the message
     # @param :user [String] Username who wrote the message
-    def conditions(arg)
+    def conditions(message: nil)
       run_action = false
       case options[:condition_logic]
       when :and
         run_action = true
         @conditions.each do |condition|
-          run_action &&= check_condition(arg.merge({ condition: condition }))
+          run_action &&= check_condition(condition: condition, message: message)
         end
       else
         @conditions.each do |condition|
-          run_action ||= check_condition(arg.merge({ condition: condition }))
+          run_action ||= check_condition(condition: condition, message: message)
         end
       end
       run_action
@@ -111,6 +114,10 @@ module InstantSlackBot #:nodoc:
       end
     end
 
+    def id 
+      @id ||= OpenSSL::HMAC.new(rand.to_s, 'sha1').to_s
+    end
+
     def slack
       master.slack
     end
@@ -123,17 +130,15 @@ module InstantSlackBot #:nodoc:
     # @param :text [String] (see #check)
     # @param :user [String] (see #check)
     # @param :message [SlackMessage] Slack Message hash
-    def check_condition(arg)
-      condition = arg[:condition]
-      arg.delete(:condition)
+    def check_condition(condition: nil, message: nil)
       case condition.class.name
       when 'String'
-        true if /\b#{condition}\b/i.match(arg[:message]['text'])
+        true if /\b#{condition}\b/i.match(message['text'])
       when 'Regexp'
-        true if condition.match(arg[:message]['text'])
+        true if condition.match(message['text'])
       when 'Proc', 'Method'
         begin
-          true if condition.call(arg[:message])
+          true if condition.call(message: message)
         rescue RuntimeError, msg
           raise "#{CLASS}#check_condition condition error #{msg}"
         end

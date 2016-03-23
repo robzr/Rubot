@@ -179,17 +179,17 @@ module InstantSlackBot #:nodoc:
 
     def message_plus(message: message)
       message.merge({ 
-        'channelname' => resolve_channelname(message),
-        'username' => resolve_username(message) 
+        'channelname' => resolve_channelname(message: message),
+        'username' => resolve_username(message: message) 
       })
     end
 
     def post_message(message: nil, use_api: :webrpc)
       if use_api == :rtm
-        puts "Master#post_message :rtm => #{message}" if options[:debug]
+        puts "Master#post_message(:rtm) => #{message}" if options[:debug]
         @slack_rtm.send message
       else
-        puts "Master#post_message :use_api => #{message}" if options[:debug]
+        puts "Master#post_message(:webrpc) => #{message}" if options[:debug]
         @post_queue << message
       end
     rescue StandardError => msg
@@ -201,11 +201,11 @@ module InstantSlackBot #:nodoc:
       @bots.each do |bot_id, bot| 
         @threads[bot_id] << Thread.new do
           message_plussed = message_plus(message: message)
-          if bot.conditions(master: self, message: message_plussed)
+          if bot.conditions(message: message_plussed)
             set_user_typing(bot: bot, message: message) if bot.options[:use_api] == :rtm
             response = @post_options.merge(bot.post_options)
               .merge!({ 'type' => 'message', 'channel' => message['channel'] })
-            action = bot.action(master: self, message: message_plussed)
+            action = bot.action(message: message_plussed)
             action = { text: action.to_s } if action.class.name != 'Hash'
             post_message(
               message: response.merge(action),
@@ -225,7 +225,7 @@ module InstantSlackBot #:nodoc:
       end
     end
 
-    def resolve_channelname(message)
+    def resolve_channelname(message: nil)
       if @channels.key?(message['channel'])
         @channels[message['channel'].to_s]['name']
       elsif message['channel'] =~ /^C0/
@@ -237,7 +237,7 @@ module InstantSlackBot #:nodoc:
       end
     end
 
-    def resolve_username(message)
+    def resolve_username(message: nil)
       if @users.key?(message['user'].to_s)
         @users[message['user'].to_s]['name']
       else

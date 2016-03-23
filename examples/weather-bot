@@ -65,7 +65,7 @@ end
 
 instabot_options = { 
   options: { 
-    debug: false,
+    debug: true,
   },
   post_options: { 
     'icon_emoji' => ':partly_sunny:',
@@ -77,7 +77,8 @@ instabot_options = {
 instabot = InstantSlackBot::Master.new(instabot_options)
 instabot << InstantSlackBot::Bot.new(
   conditions: /^weather\s+/,
-  action: method(:get_weather)
+  action: method(:get_weather),
+  options: { debug: true }
 )
 
 instabot.run

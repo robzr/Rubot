@@ -15,16 +15,14 @@ instabot_options = {
 }
 
 class MyBot < InstantSlackBot::Bot
-  def conditions(arg)
-    message = arg[:message]
+  def conditions(message)
     return true if message['channel'] =~ /^bot_heaven/
     return true if message['text'] =~ /^test /
     return true if message['username'] =~ /^rex/
     false
   end
 
-  def action(arg)
-    message = arg[:message]
+  def action(message)
     "*I am responding* _to_ @#{message['username']} in channel ##{message['channelname']}\n"
   end
 end

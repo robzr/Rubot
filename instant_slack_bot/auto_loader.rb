@@ -6,11 +6,8 @@ require 'pp'
 require 'set'
 
 module InstantSlackBot #:nodoc:
-
   class AutoLoader
-
     CLASS = 'InstantSlackBot::AutoLoader'
-
     attr_accessor :changes
 
     def initialize(
@@ -30,57 +27,6 @@ module InstantSlackBot #:nodoc:
       @files = {}
       @launcher_thread = nil
       launch_watcher_thread
-    end
-
-    def load_file(file)
-      load file
-      true
-    rescue SyntaxError => msg
-      puts "#{CLASS} syntax error in #{file}, skipping load"
-      puts "#{msg.to_s.gsub(/^/, ' -> ')}"
-      false
-    end
-
-
-    def master_add(file)
-      return false unless load_file file
-      class_name = get_class_name file 
-      if eval "defined? #{class_name}.name"
-        @bots[file] = eval "#{class_name}.new"
-        puts "#{CLASS} adding Bot #{class_name} #{@bots[file].id}" if @debug
-        @master << @bots[file]
-      else
-        puts "#{CLASS} missing Class #{class_name}, skipping load"
-      end
-    end
-
-    def master_delete(file)
-      return unless @bots.key? file
-      puts "#{CLASS} deleting bot: #{@bots[file].id}" if @debug
-      @master.delete(@bots[file].id)
-      @bots.delete(file)
-      module_name = get_module_name(file)
-      (eval "#{module_name}.constants").each do |class_name|
-        puts "Removing #{module_name}::#{class_name}"
-        eval "#{module_name}.send(:remove_const, '#{class_name}')"
-      end
-    rescue Exception => msg
-      puts "#{CLASS}#master_delete - error #{msg}"
-    end
-
-    def update_master(master = @master)
-      while @changes.length > 0
-        change = @changes.shift
-        case change[:action]
-        when :added
-          master_add change[:file]
-        when :deleted
-          master_delete change[:file]
-        when :changed
-          master_delete change[:file]
-          master_add change[:file]
-        end
-      end
     end
 
     private
@@ -123,10 +69,6 @@ module InstantSlackBot #:nodoc:
       }
     end
 
-    def get_class_name(file)
-        get_module_name(file).sub(/.*/, '\&::\&')
-    end
-
     def get_module_name(file)
       file.gsub(/.*\//, '')
         .sub(/\.rb$/, '')
@@ -154,6 +96,58 @@ module InstantSlackBot #:nodoc:
         files[file] = file_stat file
       end
       files
+    end
+
+    def load_file(file)
+      load file
+      true
+    rescue SyntaxError => msg
+      puts "#{CLASS} syntax error in #{file}, skipping load"
+      puts "#{msg.to_s.gsub(/^/, ' -> ')}"
+      false
+    end
+
+    def master_add(file)
+      return false unless load_file file
+      @bots[file] = []
+      module_name = get_module_name file
+      eval("#{module_name}.constants").each do |class_name|
+        if eval("#{module_name}::#{class_name.to_s}.ancestors.include? InstantSlackBot::Bot")
+          @bots[file] << eval("#{module_name}::#{class_name}.new")
+          puts "#{CLASS} adding Bot #{module_name}::#{class_name} #{@bots[file][-1].id}" if @debug
+          @master << @bots[file]
+        end
+      end
+    end
+
+    def master_delete(file)
+      return unless @bots.key? file
+      @bots[file].each do |bot|
+        puts "#{CLASS} deleting bot: #{bot.id}" if @debug
+        @master.delete(bot.id)
+      end
+      module_name = get_module_name(file)
+      eval("#{module_name}.constants").each do |class_name|
+        eval "#{module_name}.send(:remove_const, '#{class_name}')"
+      end
+      @bots.delete(file)
+    rescue Exception => msg
+      puts "#{CLASS}#master_delete - error #{msg}"
+    end
+
+    def update_master(master = @master)
+      while @changes.length > 0
+        change = @changes.shift
+        case change[:action]
+        when :added
+          master_add change[:file]
+        when :deleted
+          master_delete change[:file]
+        when :changed
+          master_delete change[:file]
+          master_add change[:file]
+        end
+      end
     end
 
   end
