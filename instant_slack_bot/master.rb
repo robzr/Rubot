@@ -100,6 +100,7 @@ module InstantSlackBot #:nodoc:
       return nil unless @bots.key? bot_id
       @threads[bot_id].each { |thread| thread.kill }
       @threads.delete(bot_id)
+      @bots[bot_id].master = nil
       @bots.delete(bot_id)
       true
     end
