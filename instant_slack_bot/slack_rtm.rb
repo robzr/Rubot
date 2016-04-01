@@ -43,7 +43,7 @@ module InstantSlackBot #:nodoc:
       url: nil
     )
       @auto_reconnect = auto_reconnect
-      @debug = debug
+      @log_level = debug ? 1 : 0
       @open_wait_timeout = open_wait_timeout
       @ping_threshold = ping_threshold
       @throttle_timeout = throttle_timeout
@@ -108,14 +108,17 @@ module InstantSlackBot #:nodoc:
 
     private
 
+    def check_keepalive
+      if Time.new.to_i - @last_activity > @ping_threshold
+        @driver.ping
+        @last_activity = Time.new.to_i
+      end
+    end
+
     def poll_websocket
       if IO.select([@driver_client.socket], nil, nil, @throttle_timeout)
         data = @driver_client.socket.readpartial 4096
         @driver.parse data unless data.nil? || data.empty?
-      end
-      if Time.new.to_i - @last_activity > @ping_threshold
-        @driver.ping
-        @last_activity = Time.new.to_i
       end
     end
 
@@ -154,6 +157,7 @@ module InstantSlackBot #:nodoc:
             sleep @throttle_timeout
           else
             poll_websocket 
+            check_keepalive
           end
         end
       end
@@ -165,7 +169,7 @@ module InstantSlackBot #:nodoc:
         loop do
           message = @send_queue.shift
           log "WebSocket::Driver sending #{message}"
-          sleep 0.01 until @connection_status == :open
+          sleep @throttle_timeout until @connection_status == :open
           @driver.text message
         end
       end
@@ -175,7 +179,7 @@ module InstantSlackBot #:nodoc:
     def message_id
       @message_id_mutex = Mutex.new unless defined? @message_id_mutex
       @message_id_mutex.synchronize {
-        @message_id = 0 unless defined? @message_id
+        @message_id = rand(100_000) unless defined? @message_id
         @message_id += 1
       }
       @message_id
@@ -233,10 +237,14 @@ module InstantSlackBot #:nodoc:
       end
     end
 
-    def log(message)
-      return unless @debug
-      @logger ||= Logger.new(STDOUT)
-      @logger.info message
+    # arg1 = log level (defaults to 1), arg2 = message
+    def log(*arg)
+      level = arg.length > 1 ? arg.shift : 1 
+      message = arg.shift
+      if level >= @log_level
+        @logger ||= Logger.new(STDOUT)
+        @logger.info message
+      end
     end
 
     def wait_for_open
