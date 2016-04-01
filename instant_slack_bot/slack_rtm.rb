@@ -25,17 +25,19 @@ module InstantSlackBot #:nodoc:
 
   class SlackRTM
     CLASS = 'InstantSlackBot::SlackRTM'
-    VALID_DRIVER_EVENTS = [:open, :close, :message, :error]
+    VALID_DRIVER_EVENTS = [:close, :error, :message, :open]
+    VALID_CONNECTION_STATUS = [:closed, :connecting, :initializing, :open]
     SLACK_RTM_START_URL = 'https://slack.com/api/rtm.start'
     DEFAULT_THROTTLE_TIMEOUT = 0.01
 
-    attr_accessor :auto_reconnect, :debug, :ping_threshold
+    attr_accessor :auto_reconnect, :log_level, :ping_threshold
     attr_reader :connection_status
 
+    # needs token or url - token takes precedence
     def initialize(
       auto_start: true,
       auto_reconnect: true,
-      debug: false,
+      log_level: 0,
       open_wait_timeout: 15,
       ping_threshold: 15,
       throttle_timeout: DEFAULT_THROTTLE_TIMEOUT,
@@ -43,20 +45,20 @@ module InstantSlackBot #:nodoc:
       url: nil
     )
       @auto_reconnect = auto_reconnect
-      @log_level = debug ? 1 : 0
+      @log_level = log_level
       @open_wait_timeout = open_wait_timeout
       @ping_threshold = ping_threshold
       @throttle_timeout = throttle_timeout
       @url = url
 
-      @connection_status = :closed # or [:connecting, :initializing, :open]
+      @connection_status = :closed
       @event_handlers = {}
       @send_queue = Queue.new
       @receive_queue = Queue.new
       @connection_thread = nil
 
       if @url || token
-        @url ||= get_initial_url(token: token)
+        @url = token ? get_initial_url(token: token) : url
         start if auto_start
       else
         raise ArgumentError, "#{CLASS} No url or token provided"
@@ -75,9 +77,9 @@ module InstantSlackBot #:nodoc:
       return if @connection_status == :closed
       @connection_status = :closed
       @connection_thread.kill if @connection_thread
-      @connection_thread = nil 
+      @connection_thread = nil  # unnecessary ??
       @send_thread.kill if @send_thread
-      @send_thread = nil
+      @send_thread = nil  # unnecessary ??
       @driver.close 
     end
 
@@ -177,12 +179,12 @@ module InstantSlackBot #:nodoc:
     end
     
     def message_id
-      @message_id_mutex = Mutex.new unless defined? @message_id_mutex
+      @message_id_mutex ||= Mutex.new
       @message_id_mutex.synchronize {
-        @message_id = rand(100_000) unless defined? @message_id
+        @message_id ||= rand(100_000)
         @message_id += 1
       }
-      @message_id
+      @message_id   # unnecessary ?
     end       
 
     def register_driver_events 
@@ -253,7 +255,6 @@ module InstantSlackBot #:nodoc:
         (Time.new.to_i - start_time < @open_wait_timeout)
       raise StandardError, "Timed out waiting for open" unless @connection_status == :open
     end
-
   end
 
   class WebSocketDriverClient
@@ -268,5 +269,4 @@ module InstantSlackBot #:nodoc:
       @socket.write(*args)
     end
   end
-
 end
