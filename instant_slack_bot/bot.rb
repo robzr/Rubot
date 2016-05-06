@@ -53,7 +53,11 @@ module InstantSlackBot #:nodoc:
     def action(message: nil)
       if ['Proc', 'Method'].include?@action.class.name
         begin
-          @action.call(message: message)
+          if @action.class.name == 'Proc'
+            @action.call(message)
+          else
+            @action.call(message: message)
+          end
         rescue StandardError => msg
           raise RuntimeError, "#{CLASS}#action bot action error #{msg}"
         end
@@ -136,7 +140,13 @@ module InstantSlackBot #:nodoc:
         true if /\b#{condition}\b/i.match(message['text'])
       when 'Regexp'
         true if condition.match(message['text'])
-      when 'Proc', 'Method'
+      when 'Proc'
+        begin
+          true if condition.call(message)
+        rescue RuntimeError, msg
+          raise "#{CLASS}#check_condition condition error #{msg}"
+        end
+      when 'Method'
         begin
           true if condition.call(message: message)
         rescue RuntimeError, msg

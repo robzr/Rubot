@@ -20,7 +20,7 @@ require_relative '../instant_slack_bot'
 abort 'Missing Slack token' unless ENV['SLACK_TOKEN']
 abort 'Missing Weather Underground key' unless ENV['WUNDERGROUND_KEY']
 
-def get_weather(message)
+def get_weather(message: message)
   location = message['text'].sub(/^weather\s+/, '')
   case location
   when 'help'

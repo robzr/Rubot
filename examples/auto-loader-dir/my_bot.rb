@@ -39,7 +39,7 @@ module MyBot
           }
         ]
       } 
-#      { :text => 'hi' }
+      { :text => text }
     end
   end
 end

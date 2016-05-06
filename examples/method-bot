@@ -15,14 +15,14 @@ instabot_options = {
   }
 }
 
-def conditions(message)
+def conditions(message: message)
   return true if message['channel'] =~ /^bot_heaven/
   return true if message['text'] =~ /^test /
   return true if message['username'] =~ /^rex/
   false
 end
 
-def action(message)
+def action(message: message)
   "*I am responding* _to_ @#{message['username']} in channel ##{message['channelname']}\n"
 end
 
