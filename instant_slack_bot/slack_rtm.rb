@@ -30,14 +30,14 @@ module InstantSlackBot #:nodoc:
     SLACK_RTM_START_URL = 'https://slack.com/api/rtm.start'
     DEFAULT_THROTTLE_TIMEOUT = 0.01
 
-    attr_accessor :auto_reconnect, :log_level, :ping_threshold
+    attr_accessor :auto_reconnect, :debug, :ping_threshold
     attr_reader :connection_status
 
     # needs token or url - token takes precedence
     def initialize(
       auto_start: true,
       auto_reconnect: true,
-      log_level: 0,
+      debug: false,
       open_wait_timeout: 15,
       ping_threshold: 15,
       throttle_timeout: DEFAULT_THROTTLE_TIMEOUT,
@@ -45,7 +45,7 @@ module InstantSlackBot #:nodoc:
       url: nil
     )
       @auto_reconnect = auto_reconnect
-      @log_level = log_level
+      @debug = debug
       @open_wait_timeout = open_wait_timeout
       @ping_threshold = ping_threshold
       @throttle_timeout = throttle_timeout
@@ -240,10 +240,8 @@ module InstantSlackBot #:nodoc:
     end
 
     # arg1 = log level (defaults to 1), arg2 = message
-    def log(*arg)
-      level = arg.length > 1 ? arg.shift : 1 
-      message = arg.shift
-      if level >= @log_level
+    def log(message)
+      if @debug
         @logger ||= Logger.new(STDOUT)
         @logger.info message
       end
