@@ -8,16 +8,16 @@
 #
 require_relative '../instant_slack_bot'
 
-instabot = InstantSlackBot::Master.new(token: ENV['SLACK_TOKEN'])
+master = InstantSlackBot::Master.new(token: ENV['SLACK_TOKEN'])
 
 # Display a few details about the Slack connection
 puts \
-  "Logged into Slack as #{instabot.slack_connection['user']}\n" +
-  "Using team #{instabot.slack_connection['team']} " +
-  "(#{instabot.slack_connection['url']})\n" +
-  "All users\n -> #{instabot.users.join("\n -> ")}\n" +
-  "Available channels\n -> #{instabot.channels(:available).join("\n -> ")}" +
-  "Subscribed channels\n -> #{instabot.channels(:subscribed).join("\n -> ")}"
+  "Logged into Slack as #{master.slack_connection['user']}\n" +
+  "Using team #{master.slack_connection['team']} " +
+  "(#{master.slack_connection['url']})\n" +
+  "All users\n -> #{master.users.join("\n -> ")}\n" +
+  "Available channels\n -> #{master.channels(:available).join("\n -> ")}" +
+  "Subscribed channels\n -> #{master.channels(:subscribed).join("\n -> ")}"
 
 # Static text trigger and response
 simple_bot = InstantSlackBot::Bot.new(
@@ -26,10 +26,10 @@ simple_bot = InstantSlackBot::Bot.new(
 )
 
 # Register the bot with the master
-instabot << simple_bot
+master << simple_bot
 
 # Add another bot using a Regex condition and an inline proc action
-instabot << InstantSlackBot::Bot.new(
+master << InstantSlackBot::Bot.new(
   conditions: /(who|how) are you, instabot/, 
   action: proc { |message| "I\'m here and I\'m fine, @#{message['username']}." }
 )
@@ -52,8 +52,8 @@ action = lambda do |message|
   "\n>>>#{message['text']}"
 end
 
-instabot << InstantSlackBot::Bot.new(conditions: conditions, action: action)
+master << InstantSlackBot::Bot.new(conditions: conditions, action: action)
 
-puts "Running #{instabot.bots.length} bots"
+puts "Running #{master.bots.length} bots"
 
-instabot.run
+master.run
