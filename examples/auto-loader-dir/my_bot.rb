@@ -1,3 +1,6 @@
+#
+# Example Bot loaded via AutoLoader. Edit in-place; it gets reloaded on saves.
+#
 require '../instant_slack_bot'
 
 module MyBot
@@ -20,26 +23,17 @@ module MyBot
     end
   
     def action(message: nil)
-      if message['username'] == 'paul'
-        text = "ugh."
-      elsif message['username'] == 'robzr'
-        text = "Aww yah."
-      else
-        text = "Hello @#{message['username']}."
-      end
       { 
-        "attachments" => [
-          {
-            "fallback" => "Network traffic (kb/s): How does this look? @slack-ops - Sent by Julie Dodd - https://datadog.com/path/to/event",
-            "title" => "Network traffic (kb/s)",
-            "title_link" => "https://datadog.com/path/to/event",
-            "text" => "How does this look? @slack-ops - Sent by Julie Dodd",
-            "image_url" => "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
-            "color" => "#764FA5"
-          }
-        ]
-      } 
-      { :text => text }
+        :text => 
+          case message['username']
+          when 'paul'
+            'Ugh, Paul again!?'
+          when 'robzr'
+            'Hello, my lord.'
+          else
+            "Hi @#{message['username']}."
+          end
+      }
     end
   end
 end

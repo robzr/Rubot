@@ -7,11 +7,10 @@ require 'pp'
 require_relative '../instant_slack_bot'
 
 instabot_options = { 
-  token: ENV['SLACK_TOKEN'],
   options: {
     debug: false,
     use_api: :rtm
-  },
+  }
 }
 
 class MyBot < InstantSlackBot::Bot

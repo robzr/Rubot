@@ -10,13 +10,14 @@ require_relative '../instant_slack_bot'
 
 instabot = InstantSlackBot::Master.new(token: ENV['SLACK_TOKEN'])
 
-# Print a few details about the Slack connection and Bot
-puts "Logged into Slack as #{instabot.slack_connection['user']}"
-puts "Using team #{instabot.slack_connection['team']} " \
-  "(#{instabot.slack_connection['url']})"
-puts "All users\n -> #{instabot.users.join("\n -> ")}"
-puts "Available channels\n -> #{instabot.channels(:available).join("\n -> ")}"
-puts "Subscribed channels\n -> #{instabot.channels(:subscribed).join("\n -> ")}"
+# Display a few details about the Slack connection
+puts \
+  "Logged into Slack as #{instabot.slack_connection['user']}\n" +
+  "Using team #{instabot.slack_connection['team']} " +
+  "(#{instabot.slack_connection['url']})\n" +
+  "All users\n -> #{instabot.users.join("\n -> ")}\n" +
+  "Available channels\n -> #{instabot.channels(:available).join("\n -> ")}" +
+  "Subscribed channels\n -> #{instabot.channels(:subscribed).join("\n -> ")}"
 
 # Static text trigger and response
 simple_bot = InstantSlackBot::Bot.new(

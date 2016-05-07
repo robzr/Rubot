@@ -34,4 +34,5 @@ my_bot = InstantSlackBot::Bot.new(
 )
 
 master << my_bot
+
 master.run

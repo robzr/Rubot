@@ -14,7 +14,7 @@ module InstantSlackBot #:nodoc:
       channels: nil,
       options: {},
       post_options: {},
-      token: nil
+      token: ENV['SLACK_TOKEN']
     )
       @bots = {}
       @channel_criteria = channels || {}
