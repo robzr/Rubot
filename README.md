@@ -5,6 +5,7 @@ Simple, extensible, multithreaded Slack Bot Ruby API
 - Multiple bots can share a single API connection object
 - Posting can be done via RTM API for low latency sending
 - AutoLoader class allows for dynamic loading/unloading/reloading of Bots
+- Callback class starts a webserver to track and respond to clickbacks
 
 ####See the [InstantSlackBot Wiki](https://github.com/robzr/instant-slack-bot/wiki) for
 - [Design Goals](https://github.com/robzr/instant-slack-bot/wiki)

@@ -1,20 +1,19 @@
 #
 # Example Bot loaded via AutoLoader. Edit in-place; it gets reloaded on saves.
 #
+require 'pp'
 require '../instant_slack_bot'
 
 module MyBot
   class MyBot < InstantSlackBot::Bot
-
-    @@options = { 
-      debug: true
-    }
-
-    @@post_options = { 
-      'username' => 'bubba',
-      'icon_emoji' => ':smile:',
-      'as_user' => false,
-    }
+    def initialize
+      @cb = InstantSlackBot::Callback.new
+      super(options: { debug: true},
+            post_options: {
+              'username' => 'bubbaBot',
+              'icon_emoji' => ':smile:',
+            })
+    end
 
     def conditions(message: nil)
       return true if message['text'] =~ /^hi /i
@@ -37,4 +36,3 @@ module MyBot
     end
   end
 end
-

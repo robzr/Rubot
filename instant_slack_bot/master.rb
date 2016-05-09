@@ -105,6 +105,18 @@ module InstantSlackBot #:nodoc:
       true
     end
 
+    def post_message(message: nil, use_api: :webrpc)
+      if use_api == :rtm
+        puts "Master#post_message(:rtm) => #{message}" if options[:debug]
+        @slack_rtm.send message
+      else
+        puts "Master#post_message(:webrpc) => #{message}" if options[:debug]
+        @post_queue << message
+      end
+    rescue StandardError => msg
+      abort "Master#post_message error: #{msg}"
+    end
+
     # Event loop - does not return (yet).
     def run
       loop do
@@ -183,18 +195,6 @@ module InstantSlackBot #:nodoc:
         'channelname' => resolve_channelname(message: message),
         'username' => resolve_username(message: message) 
       })
-    end
-
-    def post_message(message: nil, use_api: :webrpc)
-      if use_api == :rtm
-        puts "Master#post_message(:rtm) => #{message}" if options[:debug]
-        @slack_rtm.send message
-      else
-        puts "Master#post_message(:webrpc) => #{message}" if options[:debug]
-        @post_queue << message
-      end
-    rescue StandardError => msg
-      abort "Master#post_message error: #{msg}"
     end
 
     # This should be migrated to use a Queue and a message sending thread

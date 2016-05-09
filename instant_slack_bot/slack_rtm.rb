@@ -22,7 +22,6 @@ require 'thread'
 include IO::WaitReadable
 
 module InstantSlackBot #:nodoc:
-
   class SlackRTM
     CLASS = 'InstantSlackBot::SlackRTM'
     VALID_DRIVER_EVENTS = [:close, :error, :message, :open]

@@ -6,7 +6,6 @@ require 'base64'
 require 'openssl'
 
 module InstantSlackBot #:nodoc:
-
   class Bot
     CLASS = 'InstantSlackBot::Bot'
     attr_accessor :action, :conditions, :channels, :master, :options, :post_options
@@ -124,6 +123,21 @@ module InstantSlackBot #:nodoc:
 
     def slack
       master.slack
+    end
+
+    def reply_to(message: nil, reply: nil)
+      reply = { text: reply.to_s } if reply.class.name != 'Hash'
+      response = master.post_options
+        .merge(@post_options)
+        .merge({ 
+          'type' => 'message',
+          'channel' => message['channel']
+        })    
+        .merge(reply)
+      master.post_message(
+        message: response,
+        use_api: @options[:use_api]
+      )
     end
 
     private

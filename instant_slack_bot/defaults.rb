@@ -1,6 +1,18 @@
 # InstantSlackBot default options
 
 module InstantSlackBot #:nodoc:
+  require 'webrick'
+
+  CALLBACK_404S = ['favicon.ico'].to_set
+  CALLBACK_ABORT_ON_SIGS  = ['INT', 'TERM']
+  DEFAULT_CALLBACK_CONFIG = {
+    AccessLog: [
+      [STDOUT, WEBrick::AccessLog::COMMON_LOG_FORMAT]
+    ],
+    DocumentRoot: nil,
+    Port: :random
+  }
+
   DEFAULT_MAX_THREADS = 50
   THREAD_THROTTLE_DELAY = 0.001
 
@@ -17,8 +29,7 @@ module InstantSlackBot #:nodoc:
                           #    in messages :rtm bots must be /invited 
   }
 
-  DEFAULT_BOT_POST_OPTIONS = {
-  }
+  DEFAULT_BOT_POST_OPTIONS = {}
 
   DEFAULT_MASTER_POST_OPTIONS = { 
     'as_user' => false,
