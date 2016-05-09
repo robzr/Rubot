@@ -9,6 +9,9 @@ module InstantSlackBot #:nodoc:
     attr_reader :server
     attr_accessor :server_url
   
+    #
+    # TODO: merge config hash ; enable config { debug: } -> accesslog
+    #
     def initialize(config: nil, 
                    server_url: nil,
                    webrick_config: {})
