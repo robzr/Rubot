@@ -40,7 +40,15 @@ module InstantSlackBot #:nodoc:
       if CALLBACK_404S.include? path  
         res.status = 404
       elsif @callbacks.has_key? path
-        res.body = launch_callback(id: path, req: req)
+        cb_response = launch_callback(id: path, req: req, res: res)
+        case cb_response.class.name
+        when 'String'
+          res.body = cb_response
+        when 'WEBrick::HTTPResponse'
+          res = cb_response
+        else
+          raise ArgumentError "Invalid callback response type"
+        end
       else
         res.body = "Error, unused URL."
       end
@@ -60,12 +68,12 @@ module InstantSlackBot #:nodoc:
       end
     end
   
-    def launch_callback(id: nil, req: nil)
+    def launch_callback(id: nil, req: nil, res: nil)
       case @callbacks[id].class.name
       when 'String'
         @callbacks[id]
       when 'Proc'
-        @callbacks[id].call(req)
+        @callbacks[id].call(req, res)
       else
         raise ArgumentError "Invalid callback type: @callbacks[id].class.name"
       end
