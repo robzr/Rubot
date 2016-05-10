@@ -1,15 +1,18 @@
 #!/usr/bin/env ruby
 #
-# Run this in the examples directory; it will monitor the auto-loader-test 
+# Run this in the examples directory; it will monitor the auto-loader-dir 
 # directory for new modules to show up.
 # 
 # Module name must match filename.
 
 require_relative '../instant_slack_bot'
 
-master = InstantSlackBot::Master.new(options: { debug: true })
+master = InstantSlackBot::Master.new(options: { debug: false })
 
-auto_loader = InstantSlackBot::AutoLoader.new(debug: true,
-                                              directory: 'auto-loader-dir',
-                                              master: master)
+auto_loader = InstantSlackBot::AutoLoader.new(
+  debug: true,
+  directory: 'auto-loader-dir',
+  master: master
+)
+
 master.run

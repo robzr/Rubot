@@ -36,20 +36,24 @@ master << InstantSlackBot::Bot.new(
 
 # Lambda based condition array and action
 conditions = [
-  lambda do |message|
+  lambda { |message|
     message['channelname'] == 'general' && 
       message['text'].length < 15 &&
       message['text'] =~ /^instabot short/i
-  end,
-  lambda do |message|
+  },
+  lambda { |message|
     message['channelname'] == 'general' &&
       message['text'].length > 15 &&
       message['text'] =~ /^instabot long/i
-  end
+  }
 ]
 action = lambda do |message|
-  "*Matched _Text* from_ ~#{message['username']}~ in ##{message['channelname']}"\
-  "\n>>>#{message['text']}"
+  printf(
+    "*Matched _Text* from_ ~%s~ in #%s\n>>>%s",
+    message['username'],
+    message['channelname'],
+    message['text']
+  )
 end
 
 master << InstantSlackBot::Bot.new(conditions: conditions, action: action)

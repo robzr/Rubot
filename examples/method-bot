@@ -16,23 +16,24 @@ instabot_options = {
 }
 
 def conditions(message: message)
-  return true if message['channel'] =~ /^bot_heaven/
-  return true if message['text'] =~ /^test /
-  return true if message['username'] =~ /^rex/
-  false
+  message['channel'] =~ /^bot_heaven/ ||
+    message['text'] =~ /^test / ||
+    message['username'] =~ /^rex/
 end
 
 def action(message: message)
-  "*I am responding* _to_ @#{message['username']} in channel ##{message['channelname']}\n"
+  printf(
+    "*I am responding* _to_ @%s in channel #%s\n",
+    message['username'],
+    message['channelname']
+  )
 end
 
-master = InstantSlackBot::Master.new(instabot_options)
+master = InstantSlackBot::Master.new instabot_options
 
-my_bot = InstantSlackBot::Bot.new(
+master << InstantSlackBot::Bot.new(
   conditions: method(:conditions),
   action: method(:action)
 )
-
-master << my_bot
 
 master.run

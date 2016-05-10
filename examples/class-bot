@@ -2,8 +2,7 @@
 #
 # InstantSlackBot Class based example
 #   http://github.com/robzr/instant-slack-bot
-#
-require 'pp'
+
 require_relative '../instant_slack_bot'
 
 instabot_options = { 
@@ -15,14 +14,17 @@ instabot_options = {
 
 class MyBot < InstantSlackBot::Bot
   def conditions(message: message)
-    return true if message['channel'] =~ /^bot_heaven/
-    return true if message['text'] =~ /^test /
-    return true if message['username'] =~ /^rex/
-    false
+    message['channel'] =~ /^bot_heaven/ ||
+      message['text'] =~ /^test / ||
+      message['username'] =~ /^rex/
   end
 
   def action(message: message)
-    "*I am responding* _to_ @#{message['username']} in channel ##{message['channelname']}\n"
+    printf(
+      "*I am responding* _to_ @%s in channel #%s\n",
+      message['username'],
+      message['channelname']
+    )
   end
 end
 

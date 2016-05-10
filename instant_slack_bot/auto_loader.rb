@@ -25,8 +25,7 @@ module InstantSlackBot #:nodoc:
       @bots = {}
       @changes = Queue.new
       @files = {}
-      @launcher_thread = nil
-      launch_watcher_thread
+      @watcher_thread = launch_watcher_thread
     end
 
     private
@@ -78,7 +77,7 @@ module InstantSlackBot #:nodoc:
     end
 
     def launch_watcher_thread
-      @launcher_thread = Thread.new do
+      watcher_thread = Thread.new do
         loop do 
           time_starting = Time.new.to_f
           compare_directory
@@ -87,7 +86,8 @@ module InstantSlackBot #:nodoc:
           sleep delay if delay > 0
         end
       end
-      @launcher_thread.abort_on_exception = true
+      watcher_thread.abort_on_exception = true
+      watcher_thread
     end
 
     def load_directory
@@ -122,12 +122,14 @@ module InstantSlackBot #:nodoc:
           @master << @bots[file]
         end
       end
+    rescue NameError => msg
+      puts "#{CLASS} skipping Bot add #{file} (#{msg})"
     end
 
     def master_delete(file)
       return unless @bots.key? file
       @bots[file].each do |bot|
-        puts "#{CLASS} deleting bot: #{bot.id}" if @debug
+        puts "#{CLASS} deleting Bot: #{bot.class.to_s} #{bot.id}" if @debug
         @master.delete(bot.id)
       end
       module_name = get_module_name(file)
