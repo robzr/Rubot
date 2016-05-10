@@ -202,15 +202,17 @@ module InstantSlackBot #:nodoc:
       @bots.each do |bot_id, bot| 
         @threads[bot_id] << Thread.new do
           message_plussed = message_plus(message: message)
-          if bot.conditions(message: message_plussed)
-            set_user_typing(bot: bot, message: message) if bot.options[:use_api] == :rtm
+          if conditions = bot.conditions(message: message_plussed)
+            if conditions == :typing || bot.options[:use_api] == :rtm
+              set_user_typing(bot: bot, message: message) 
+            end
             response = @post_options.merge(bot.post_options)
               .merge!({ 'type' => 'message', 'channel' => message['channel'] })
             action = bot.action(message: message_plussed)
             action = { text: action.to_s } if action.class.name != 'Hash'
             post_message(
               message: response.merge(action),
-              use_api: bot.options[:use_api]
+              use_api: action[:use_api] || bot.options[:use_api]
             )
           end
         end

@@ -19,21 +19,19 @@ module MyBot
     def conditions(message: nil)
       return true if message['text'] =~ /^hi /i
       return true if message['text'] =~ /instabot/i
+      return :typing if message['text'] =~ /type /i
       false
     end
   
     def action(message: nil)
-      { 
-        :text => 
-          case message['username']
-          when 'paul'
-            'Ugh, Paul again!?'
-          when 'robzr'
-            'Hello, my lord.'
-          else
-            "Hi @#{message['username']}."
-          end
-      }
+      case message['username']
+      when 'paul'
+        'Ugh, Paul again!?'
+      when 'robzr'
+        { text: "Hello, my Lord.", use_api: :rtm }
+      else
+        "Hi @#{message['username']}."
+      end
     end
   end
 end
