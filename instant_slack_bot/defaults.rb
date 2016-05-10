@@ -4,12 +4,13 @@ module InstantSlackBot #:nodoc:
   require 'webrick'
 
   CALLBACK_404S = ['favicon.ico'].to_set
+
   CALLBACK_ABORT_ON_SIGS  = ['INT', 'TERM']
-  DEFAULT_CALLBACK_CONFIG = {
-    AccessLog: [
-      [STDOUT, WEBrick::AccessLog::COMMON_LOG_FORMAT]
-    ],
+
+  DEFAULT_WEBRICK_CONFIG = {
+    AccessLog: [],
     DocumentRoot: nil,
+    Logger: WEBrick::Log.new(nil, 0),
     Port: :random
   }
 

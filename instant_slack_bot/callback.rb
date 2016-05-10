@@ -9,13 +9,14 @@ module InstantSlackBot #:nodoc:
     attr_reader :server
     attr_accessor :server_url
   
-    #
-    # TODO: merge config hash ; enable config { debug: } -> accesslog
-    #
-    def initialize(config: nil, 
-                   server_url: nil,
-                   webrick_config: {})
-      @webrick_config = DEFAULT_CALLBACK_CONFIG.merge webrick_config
+    def initialize(options: nil, webrick_config: {})
+      @webrick_config = DEFAULT_WEBRICK_CONFIG
+      if options.has_key? :debug && options[:debug]
+        @webrick_config.delete(:AccessLog)
+        @webrick_config.delete(:Logger)
+      end
+      @webrick_config.merge! webrick_config
+      
       @callbacks = {}
       @server_url = server_url.sub(/\/$/, '') if server_url
       @server_thread = launch_server_thread

@@ -1,20 +1,23 @@
 #
-# Autoloader test of Callbacks
+# Autoloader test of Callback Class
 #
 require 'pp'
 require 'uri'
 require '../instant_slack_bot'
 
-module UseCallbacks
-  class CallBackBot < InstantSlackBot::Bot
+module CallbackBot
+  class CallbackBot < InstantSlackBot::Bot
+
+    OPTIONS = { debug: false } 
+
+    POST_OPTIONS = { 
+      'username' => 'CallbackBot',
+      'icon_emoji' => ':smile:',
+    }
 
     def initialize
-      @callback = InstantSlackBot::Callback.new
-      super(options: { debug: true},
-            post_options: {
-              'username' => 'bubbaBot',
-              'icon_emoji' => ':smile:',
-            })
+      @callback = InstantSlackBot::Callback.new(options: OPTIONS)
+      super(options: OPTIONS, post_options: POST_OPTIONS)
     end
 
     def conditions(message: nil)
@@ -33,20 +36,19 @@ module UseCallbacks
 
     def google_callback(message)
       @callback.register lambda { |req,res|
-        url = 'http://lmgtfy.com/?q=' + 
-          URI.encode(message['text'].sub(/^google /, ''))
-        puts "Redirecting to: #{url}"
+        url = "http://lmgtfy.com/?q="
+        url += URI.encode(message['text'].sub(/^google /, '')).to_s
+        reply_to(message: message,
+                 reply: "Initiating redirect to: #{url}")
         res.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, url)
       }
     end
 
     def generic_callback(message)
       @callback.register lambda { |req,res|
-        reply_to(
-          message: message,
-          reply: "Callback message response to: #{message['text']}"
-        )
-        "Callback web response to: #{message['text']}"
+        reply_to(message: message,
+                 reply: "Generic callback response to: #{message['text']}")
+        "Generic callback web response to: #{message['text']}"
       }
     end
 
