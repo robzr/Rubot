@@ -1,6 +1,9 @@
 #!/usr/bin/env ruby
 #
-# Run this in the examples directory, it will monitor the auto-loader-test directory for new modules
+# Run this in the examples directory; it will monitor the auto-loader-test 
+# directory for new modules to show up.
+# 
+# Module name must match filename.
 
 require_relative '../instant_slack_bot'
 

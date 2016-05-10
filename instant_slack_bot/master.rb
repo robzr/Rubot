@@ -197,7 +197,6 @@ module InstantSlackBot #:nodoc:
       })
     end
 
-    # This should be migrated to use a Queue and a message sending thread
     def process_message(message: nil)
       @bots.each do |bot_id, bot| 
         @threads[bot_id] << Thread.new do
@@ -207,7 +206,7 @@ module InstantSlackBot #:nodoc:
               set_user_typing(bot: bot, message: message) 
             end
             response = @post_options.merge(bot.post_options)
-              .merge!({ 'type' => 'message', 'channel' => message['channel'] })
+              .merge({ 'type' => 'message', 'channel' => message['channel'] })
             action = bot.action(message: message_plussed)
             action = { text: action.to_s } if action.class.name != 'Hash'
             post_message(
@@ -221,11 +220,7 @@ module InstantSlackBot #:nodoc:
     end
 
     def render_channel_criteria
-      if @channel_criteria.length > 0
-        @channel_criteria 
-      else
-        [%r{.*}]
-      end
+      @channel_criteria.length > 0 ? @channel_criteria : [%r{.*}]
     end
 
     def resolve_channelname(message: nil)
@@ -248,8 +243,9 @@ module InstantSlackBot #:nodoc:
       end
     end
 
+    # TODO: consider dedicated thread to send typing every 3 seconds until 
+    #   action response
     def set_user_typing(bot: nil, message: nil)
-      # typing can be done every 3 seconds via a thread 
       message = bot.post_options.merge({
         'channel' => message['channel'],
         'type' => 'typing'
@@ -258,7 +254,7 @@ module InstantSlackBot #:nodoc:
     end
 
     def thread_count
-      @threads.values.map { |thread_a| thread_a.length }.reduce(:+) || 0
+      @threads.values.reduce(0) { |i,a| i + a.length }
     end
 
     def update_channels

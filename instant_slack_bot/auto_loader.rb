@@ -107,7 +107,7 @@ module InstantSlackBot #:nodoc:
       false
     end
 
-    # TODO: add more error handling :)
+    # TODO: add more error handling on the evals
     def master_add(file)
       return false unless load_file file
       @bots[file] = []
@@ -115,7 +115,10 @@ module InstantSlackBot #:nodoc:
       eval("#{module_name}.constants").each do |class_name|
         if eval("#{module_name}::#{class_name.to_s}.ancestors.include? InstantSlackBot::Bot")
           @bots[file] << eval("#{module_name}::#{class_name}.new")
-          puts "#{CLASS} adding Bot #{module_name}::#{class_name} #{@bots[file][-1].id}" if @debug
+          if @debug
+            puts "#{CLASS} adding Bot #{module_name}::#{class_name} " +
+              "#{@bots[file][-1].id}" 
+          end
           @master << @bots[file]
         end
       end
