@@ -17,10 +17,14 @@ module MyBot
     end
 
     def conditions(message: nil)
-      return true if message['text'] =~ /^hi /i
-      return true if message['text'] =~ /instabot/i
-      return :typing if message['text'] =~ /type /i
-      false
+      case message['text']
+      when  /^hi /i, /instabot/i
+        true
+      when /type /i
+        :typing
+      else
+        false
+      end
     end
   
     def action(message: nil)
