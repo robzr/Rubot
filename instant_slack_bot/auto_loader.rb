@@ -107,6 +107,7 @@ module InstantSlackBot #:nodoc:
       false
     end
 
+    # TODO: add more error handling :)
     def master_add(file)
       return false unless load_file file
       @bots[file] = []

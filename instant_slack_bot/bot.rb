@@ -10,8 +10,6 @@ module InstantSlackBot #:nodoc:
     CLASS = 'InstantSlackBot::Bot'
     attr_accessor :action, :conditions, :channels, :master, :options, :post_options
     attr_reader :id
-    @@options = {}
-    @@post_options = {}
 
     # Instantiates a Bot object
     # @note `:action` and `:conditions` are both required, but can be populated
@@ -32,9 +30,7 @@ module InstantSlackBot #:nodoc:
       self.action = action
       self.conditions = conditions
       @options = DEFAULT_BOT_OPTIONS.merge(options)
-        .merge(@@options)
       @post_options = DEFAULT_BOT_POST_OPTIONS.merge(post_options)
-        .merge(@@post_options)
       @master = nil
     end
 
