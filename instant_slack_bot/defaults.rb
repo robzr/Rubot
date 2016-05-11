@@ -5,7 +5,9 @@ module InstantSlackBot #:nodoc:
 
   CALLBACK_404S = ['favicon.ico'].to_set
 
-  CALLBACK_ABORT_ON_SIGS  = ['INT', 'TERM']
+  CALLBACK_ABORT_ON_SIGS = ['INT', 'TERM']
+
+  DEFAULT_CALLBACK_PATH = 'InstantSlackBot'
 
   DEFAULT_WEBRICK_CONFIG = {
     AccessLog: [],

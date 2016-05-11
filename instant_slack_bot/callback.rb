@@ -6,9 +6,11 @@ module InstantSlackBot #:nodoc:
     require 'openssl'
     require 'webrick'
 
-    attr_reader :server
-    attr_accessor :server_url
+    attr_accessor :url, :webrick
   
+    # TODO: add expiration logic to avoid infinite memory drain
+    # - Simplest way is a Queue with a max # of instances
+    # - Could also do age based and/or # based
     def initialize(options: nil, webrick_config: {})
       @webrick_config = DEFAULT_WEBRICK_CONFIG
       if options.has_key? :debug && options[:debug]
@@ -18,8 +20,11 @@ module InstantSlackBot #:nodoc:
       @webrick_config.merge! webrick_config
       
       @callbacks = {}
-      @server_url = server_url.sub(/\/$/, '') if server_url
-      @server_thread = launch_server_thread
+      @path = (options[:path] || DEFAULT_CALLBACK_PATH)
+        .sub(/^\//, '')
+        .sub(/\/$/, '')
+      @url = url.sub(/\/$/, '') if url
+      @webrick_thread = init_webrick
     end
   
     def register(callback)
@@ -29,15 +34,30 @@ module InstantSlackBot #:nodoc:
     end
   
     alias_method :<<, :register
+
+    def start_webrick
+      @webrick_thread = Thread.new { @webrick.start }
+    end
+
+    def stop_webrick
+      Thread.kill(@webrick_thread)
+      sleep 0.01 while @webrick_thread.alive
+      @webrick_thread = nil
+    end
   
     private
   
     def callback_url(id)
-      sprintf "%s/%s", @server_url, id
+      sprintf(
+        "%s/%s%s",
+        @url,
+        @path ? "#{@path}/" : '',
+        id
+      )
     end
   
     def handler(req, res)
-      path = req.path.sub(%r{^#{@url_prefix}/}, '')
+      path = req.path.sub(%r{^/#{@path}/}, '')
       if CALLBACK_404S.include? path  
         res.status = 404
       elsif @callbacks.has_key? path
@@ -55,17 +75,34 @@ module InstantSlackBot #:nodoc:
       end
     end
   
-    def init_server
+    def init_webrick
+      instantiate_webrick until @webrick
+      @url ||= sprintf('http://%s:%s',
+                              @webrick.config[:ServerName],
+                              @webrick.config[:Port].to_s)
+      CALLBACK_ABORT_ON_SIGS.each do |sig| 
+        trap(sig) do 
+          @webrick.shutdown
+          abort
+        end
+      end
+      @webrick.mount_proc "/#{@path}" do |req, res|
+        handler(req, res)
+      end
+      start_webrick
+    end
+
+    def instantiate_webrick
       if @webrick_config[:Port] == :random
         begin
-          @server = WEBrick::HTTPServer.new @webrick_config.merge(
+          @webrick = WEBrick::HTTPServer.new @webrick_config.merge(
             { Port: 10_000 + rand(10_000) }
           )
         rescue Errno::EADDRINUSE
           nil
         end
       else
-        @server = WEBrick::HTTPServer.new @webrick_config
+        @webrick = WEBrick::HTTPServer.new @webrick_config
       end
     end
   
@@ -78,23 +115,6 @@ module InstantSlackBot #:nodoc:
       else
         raise ArgumentError "Invalid callback type: @callbacks[id].class.name"
       end
-    end
-  
-    def launch_server_thread
-      init_server until @server
-      @server_url ||= sprintf('http://%s:%s',
-                              @server.config[:ServerName],
-                              @server.config[:Port].to_s)
-      CALLBACK_ABORT_ON_SIGS.each do |sig| 
-        trap(sig) do 
-          server.shutdown
-          abort
-        end
-      end
-      server.mount_proc '/' do |req, res|
-        handler(req, res)
-      end
-      Thread.new { @server.start }
     end
   
     def random_sha1
