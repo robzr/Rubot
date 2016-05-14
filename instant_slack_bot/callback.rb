@@ -23,7 +23,7 @@ module InstantSlackBot #:nodoc:
       @path = (options[:path] || DEFAULT_CALLBACK_PATH)
         .sub(/^\//, '')
         .sub(/\/$/, '')
-      @url = url.sub(/\/$/, '') if url
+      @url = options[:url].sub(/\/$/, '') if options[:url]
       @webrick_thread = init_webrick
     end
   
@@ -41,7 +41,7 @@ module InstantSlackBot #:nodoc:
 
     def stop_webrick
       Thread.kill(@webrick_thread)
-      sleep 0.01 while @webrick_thread.alive
+      sleep 0.01 while @webrick_thread.alive?
       @webrick_thread = nil
     end
   
@@ -78,8 +78,8 @@ module InstantSlackBot #:nodoc:
     def init_webrick
       instantiate_webrick until @webrick
       @url ||= sprintf('http://%s:%s',
-                              @webrick.config[:ServerName],
-                              @webrick.config[:Port].to_s)
+                       @webrick.config[:ServerName],
+                       @webrick.config[:Port].to_s)
       CALLBACK_ABORT_ON_SIGS.each do |sig| 
         trap(sig) do 
           @webrick.shutdown
