@@ -34,6 +34,7 @@ module InstantSlackBot #:nodoc:
       @slack_connection = @slack.auth.test.body
       raise "Error authenticating to Slack WebRPC" unless @slack_connection['ok']
       @post_options['username'] ||= @slack_connection['user']
+      @user_id = @slack_connection['user_id']
 
       update_channels
       update_users
@@ -198,6 +199,7 @@ module InstantSlackBot #:nodoc:
     end
 
     def process_message(message: nil)
+      return if message['user'] == @user_id
       @bots.each do |bot_id, bot| 
         @threads[bot_id] << Thread.new do
           message_plussed = message_plus(message: message)
