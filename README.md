@@ -1,16 +1,18 @@
 # InstantSlackBot
 Simple, extensible, multithreaded Slack Bot Ruby API 
 - Lightweight and largely transparent layer on top of Slack APIs
+- Properly implements usage of Web RPC & WebSocket (RTM) APIs
 - Fully multithreaded for efficient and fast response
-- Multiple bots can share a single API connection object
-- Posting can be done via RTM API for low latency sending
+- Multiple bots can share a single connection
+- Posting can optionally be done via RTM API for low latency sending
 - AutoLoader class allows for dynamic loading/unloading/reloading of Bots
 - Callback class starts a webserver to track and respond to clickbacks
+- Implements WebSocket keepalives, tracks Slack reconnect\_urls
 
 ####See the [InstantSlackBot Wiki](https://github.com/robzr/instant-slack-bot/wiki) for
 - [Design Goals](https://github.com/robzr/instant-slack-bot/wiki)
-- [Architectural Overview](https://github.com/robzr/instant-slack-bot/wiki/Architecture)
-- [Example Bots](https://github.com/robzr/instant-slack-bot/wiki/Example-Bots)
+- [Overview](https://github.com/robzr/instant-slack-bot/wiki/Overview)
+- [Examples](https://github.com/robzr/instant-slack-bot/wiki/Examples)
 - [TODO List for upcoming features](https://github.com/robzr/instant-slack-bot/wiki/TODO)
 - [License & Credits](https://github.com/robzr/instant-slack-bot/wiki)
 
