@@ -113,6 +113,7 @@ module InstantSlackBot #:nodoc:
       @bots[file] = []
       module_name = get_module_name file
       eval("#{module_name}.constants").each do |class_name|
+        next unless eval "#{module_name}::#{class_name.to_s}.class.name == 'Class'"
         if eval("#{module_name}::#{class_name.to_s}.ancestors.include? InstantSlackBot::Bot")
           @bots[file] << eval("#{module_name}::#{class_name}.new")
           if @debug
