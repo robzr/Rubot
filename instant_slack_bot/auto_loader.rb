@@ -107,24 +107,31 @@ module InstantSlackBot #:nodoc:
       false
     end
 
-    # TODO: add more error handling on the evals
     def master_add(file)
       return false unless load_file file
       @bots[file] = []
       module_name = get_module_name file
       eval("#{module_name}.constants").each do |class_name|
-        next unless eval "#{module_name}::#{class_name.to_s}.class.name == 'Class'"
-        if eval("#{module_name}::#{class_name.to_s}.ancestors.include? InstantSlackBot::Bot")
-          @bots[file] << eval("#{module_name}::#{class_name}.new")
-          if @debug
-            puts "#{CLASS} adding Bot #{module_name}::#{class_name} " +
-              "#{@bots[file][-1].id}" 
-          end
+        class_path = "#{module_name}::#{class_name.to_s}"
+        if(eval("#{class_path}.class.name == 'Class'") &&
+           eval("#{class_path}.ancestors.include? " +
+                "InstantSlackBot::Bot"))
+          @bots[file] << eval("#{class_path}.new")
+          puts "#{CLASS} adding #{class_path} #{@bots[file][-1].id}" if @debug
           @master << @bots[file]
         end
       end
-    rescue NameError => msg
-      puts "#{CLASS} skipping Bot add #{file} (#{msg})"
+    rescue Exception => msg
+      print_load_error(file: file, msg: msg)
+    end
+
+    def print_load_error(file: nil, msg: nil)
+      puts "#{CLASS} Error: #{file}"
+      puts "  Detail: #{msg}"
+      puts msg.backtrace
+        .select { |bt| bt !~ /\/auto_loader.rb:/ }
+        .join("\n")
+        .gsub(/^/, '  -> ')
     end
 
     def master_delete(file)
