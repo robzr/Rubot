@@ -136,6 +136,10 @@ module InstantSlackBot #:nodoc:
       )
     end
 
+    def stop
+      # Called by Master when deleting a bot
+    end
+
     private
 
     # Called by `#check` to evalute each condition

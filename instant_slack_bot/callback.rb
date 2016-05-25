@@ -40,6 +40,7 @@ module InstantSlackBot #:nodoc:
     end
 
     def stop_webrick
+      @webrick.shutdown
       Thread.kill(@webrick_thread)
       sleep 0.01 while @webrick_thread.alive?
       @webrick_thread = nil
