@@ -1,6 +1,7 @@
 # InstantSlackBot default options
 
 module InstantSlackBot #:nodoc:
+  require 'set'
   require 'webrick'
 
   CALLBACK_404S = ['favicon.ico'].to_set

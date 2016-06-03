@@ -7,23 +7,32 @@ module InstantSlackBot #:nodoc:
     require 'webrick'
 
     attr_accessor :url, :webrick
+
+    # TODO: fix the start / stop, it doesn't seem to restart after stopping properly.
+
+    DEFAULT_CALLBACK_OPTIONS = { 
+      autostart: true,
+      debug: false, 
+      path: DEFAULT_CALLBACK_PATH,
+      url: nil
+    }
   
     # TODO: add expiration logic to avoid infinite memory drain
     # - Simplest way is a Queue with a max # of instances
     # - Could also do age based and/or # based
-    def initialize(options: nil, webrick_config: {})
+    def initialize(options: {}, webrick_config: {})
+      @options = DEFAULT_CALLBACK_OPTIONS.merge options
       @webrick_config = DEFAULT_WEBRICK_CONFIG
-      if options.has_key? :debug && options[:debug]
+      if @options[:debug]
         @webrick_config.delete(:AccessLog)
         @webrick_config.delete(:Logger)
       end
       @webrick_config.merge! webrick_config
       
       @callbacks = {}
-      @path = (options[:path] || DEFAULT_CALLBACK_PATH)
-        .sub(/^\//, '')
+      @path = @options[:path].sub(/^\//, '')
         .sub(/\/$/, '')
-      @url = options[:url].sub(/\/$/, '') if options[:url]
+      @url = @options[:url].sub(/\/$/, '') if @options[:url]
       @webrick_thread = init_webrick
     end
   
@@ -40,9 +49,10 @@ module InstantSlackBot #:nodoc:
     end
 
     def stop_webrick
+      return unless @webrick_thread
       @webrick.shutdown
-      Thread.kill(@webrick_thread)
       sleep 0.01 while @webrick_thread.alive?
+      Thread.kill(@webrick_thread)
       @webrick_thread = nil
     end
   
@@ -90,7 +100,7 @@ module InstantSlackBot #:nodoc:
       @webrick.mount_proc "/#{@path}" do |req, res|
         handler(req, res)
       end
-      start_webrick
+      start_webrick if @options[:autostart]
     end
 
     def instantiate_webrick
