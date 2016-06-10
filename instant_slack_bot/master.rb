@@ -203,19 +203,23 @@ module InstantSlackBot #:nodoc:
       return if message['user'] == @user_id
       @bots.each do |bot_id, bot| 
         @threads[bot_id] << Thread.new do
-          message_plussed = message_plus(message: message)
-          if conditions = bot.conditions(message: message_plussed)
-            if conditions == :typing || bot.options[:use_api] == :rtm
-              set_user_typing(bot: bot, message: message) 
+          begin
+            message_plussed = message_plus(message: message)
+            if conditions = bot.conditions(message: message_plussed)
+              if conditions == :typing || bot.options[:use_api] == :rtm
+                set_user_typing(bot: bot, message: message) 
+              end
+              response = @post_options.merge(bot.post_options)
+                .merge({ 'type' => 'message', 'channel' => message['channel'] })
+              action = bot.action(message: message_plussed)
+              action = { text: action.to_s } if action.class.name != 'Hash'
+              post_message(
+                message: response.merge(action),
+                use_api: action[:use_api] || bot.options[:use_api]
+              )
             end
-            response = @post_options.merge(bot.post_options)
-              .merge({ 'type' => 'message', 'channel' => message['channel'] })
-            action = bot.action(message: message_plussed)
-            action = { text: action.to_s } if action.class.name != 'Hash'
-            post_message(
-              message: response.merge(action),
-              use_api: action[:use_api] || bot.options[:use_api]
-            )
+          rescue Exception => exc
+            puts "master#process_message: #{exc.inspect}"
           end
         end
       end
