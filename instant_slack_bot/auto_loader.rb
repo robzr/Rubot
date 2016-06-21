@@ -79,10 +79,10 @@ module InstantSlackBot #:nodoc:
     def launch_watcher_thread
       watcher_thread = Thread.new do
         loop do 
-          time_starting = Time.new.to_f
+          time_starting = Time.now.to_f
           compare_directory
           update_master if @master
-          delay = @refresh - (Time.new.to_f - time_starting)
+          delay = @refresh - (Time.now.to_f - time_starting)
           sleep delay if delay > 0
         end
       end

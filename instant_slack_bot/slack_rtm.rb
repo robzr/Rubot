@@ -110,9 +110,9 @@ module InstantSlackBot #:nodoc:
     private
 
     def check_keepalive
-      if Time.new.to_i - @last_activity > @ping_threshold
+      if Time.now.to_i - @last_activity > @ping_threshold
         @driver.ping
-        @last_activity = Time.new.to_i
+        @last_activity = Time.now.to_i
       end
     end
 
@@ -121,12 +121,17 @@ module InstantSlackBot #:nodoc:
         data = @driver_client.socket.readpartial 4096
         @driver.parse data unless data.nil? || data.empty?
       end
+    rescue Errno::ECONNRESET => e
+      log "WebSocket::Driver Exception Errno::ECONNRESET -> #{e}"
+      close
     end
 
     def connect_to_slack
       return if @connection_status == :open
       @connection_status = :connecting
-      socket = OpenSSL::SSL::SSLSocket.new(TCPSocket.new(@url.sub(%r{.*//([^/]*)/.*}, '\1'), 443))
+      socket = OpenSSL::SSL::SSLSocket.new(
+        TCPSocket.new(@url.sub(%r{.*//([^/]*)/.*}, '\1'), 443)
+      )
       @driver_client = WebSocketDriverClient.new(
         @url,
         socket
@@ -197,7 +202,7 @@ module InstantSlackBot #:nodoc:
       @driver.on :close do |event|
         log "WebSocket::Driver received a close event"
         @connection_status = :closed
-        @last_activity = Time.new.to_i
+        @last_activity = Time.now.to_i
         @event_handlers[:close].call if @event_handlers[:close]
         connect_to_slack if @auto_reconnect
       end
@@ -206,7 +211,7 @@ module InstantSlackBot #:nodoc:
     def register_driver_error
       @driver.on :error do |event|
         log "WebSocket::Driver received an error"
-        @last_activity = Time.new.to_i
+        @last_activity = Time.now.to_i
         @event_handlers[:error].call if @event_handlers[:error]
       end
     end
@@ -214,7 +219,7 @@ module InstantSlackBot #:nodoc:
     def register_driver_message
       @driver.on :message do |event|
         data = JSON.parse event.data
-        @last_activity = Time.new.to_i
+        @last_activity = Time.now.to_i
         log "WebSocket::Driver received a message: #{data}"
         case data['type']
         when 'hello'
@@ -233,7 +238,7 @@ module InstantSlackBot #:nodoc:
       @driver.on :open do
         log "WebSocket::Driver :open"
         @connection_status = :initializing
-        @last_activity = Time.new.to_i
+        @last_activity = Time.now.to_i
         @event_handlers[:open].call if @event_handlers[:open]
       end
     end
@@ -247,9 +252,9 @@ module InstantSlackBot #:nodoc:
     end
 
     def wait_for_open
-      start_time = Time.new.to_i
+      start_time = Time.now.to_i
       sleep @throttle_timeout while @connection_status != :open &&
-        (Time.new.to_i - start_time < @open_wait_timeout)
+        (Time.now.to_i - start_time < @open_wait_timeout)
       raise StandardError, "Timed out waiting for open" unless @connection_status == :open
     end
   end
